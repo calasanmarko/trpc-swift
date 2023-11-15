@@ -1,0 +1,5 @@
+{
+    "watch": ["src", "debug"],
+    "ext": "*",
+    "exec": "kill-port 5050 && yarn run start || exit 1"
+}

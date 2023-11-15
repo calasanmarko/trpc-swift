@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Demo",
+            "request": "launch",
+            "type": "node",
+            "runtimeExecutable": "nodemon",
+            "cwd": "${workspaceFolder}/demo"
+        },
+        {
+            "name": "Compile Demo",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "yarn",
+            "runtimeArgs": ["run", "watch"],
+            "cwd": "${workspaceFolder}/demo",
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "TRPC-Swift",
+            "configurations": ["Demo", "Compile Demo"]
+        }
+    ]
+}

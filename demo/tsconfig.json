@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "NodeNext",
+        "rootDir": "src",
+        "outDir": "debug",
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "sourceMap": true,
+        "mapRoot": "../debug",
+        "incremental": true
+    },
+    "include": ["src/**/*.ts"]
+}

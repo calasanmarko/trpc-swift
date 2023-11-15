@@ -1,0 +1,26 @@
+{
+    "name": "demo",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT",
+    "private": true,
+    "scripts": {
+        "start": "node ./debug/index.js",
+        "watch": "tsc --watch",
+        "build": "tsc",
+        "clean": "rimraf tsconfig.tsbuildinfo && rimraf -g debug/*",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write . **/*.{js,ts,json}"
+    },
+    "dependencies": {
+        "@trpc/server": "^10.43.3"
+    },
+    "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^6.11.0",
+        "@typescript-eslint/parser": "^6.11.0",
+        "esbuild": "^0.19.5",
+        "eslint": "^8.53.0",
+        "prettier": "^3.1.0",
+        "typescript": "^5.2.2"
+    }
+}
