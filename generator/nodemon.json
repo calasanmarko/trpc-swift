@@ -1,0 +1,5 @@
+{
+    "watch": ["src", "debug"],
+    "ext": "*",
+    "exec": "yarn run start || exit 0"
+}

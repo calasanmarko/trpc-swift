@@ -1,7 +1,7 @@
 {
-    "name": "trpc-swift-demo",
+    "name": "generator",
     "version": "1.0.0",
-    "main": "debug/index.js",
+    "main": "index.js",
     "license": "MIT",
     "private": true,
     "scripts": {
@@ -13,9 +13,11 @@
         "format": "prettier --write . **/*.{js,ts,json}"
     },
     "dependencies": {
-        "@trpc/server": "^10.43.3"
+        "trpc-swift-demo": "*"
     },
     "devDependencies": {
+        "@trpc/server": "^10.43.3",
+        "@types/node": "^20.9.0",
         "@typescript-eslint/eslint-plugin": "^6.11.0",
         "@typescript-eslint/parser": "^6.11.0",
         "esbuild": "^0.19.5",

@@ -1,7 +1,13 @@
 {
-    "workspaces": [
-        "demo"
-    ],
+    "workspaces": {
+        "packages": [
+            "demo",
+            "generator"
+        ],
+        "nohoist": [
+            "**/@trpc/**"
+        ]
+    },
     "private": true,
     "dependencies": {},
     "devDependencies": {

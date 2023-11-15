@@ -2,6 +2,8 @@ import express from "express";
 import { appRouter } from "./routes/router.js";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
+export { appRouter };
+
 const port = 5050;
 const app = express();
 
@@ -20,4 +22,4 @@ app.use(
     })
 );
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+// app.listen(port, () => console.log(`Server running on port ${port}`));
