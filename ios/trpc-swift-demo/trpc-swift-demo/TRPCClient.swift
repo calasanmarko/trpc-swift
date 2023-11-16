@@ -8,7 +8,11 @@
 import Foundation
 
 struct TRPCRequest<T: Encodable>: Encodable {
-    let json: T
+    let zero: T
+    
+    enum CodingKeys: String, CodingKey {
+        case zero = "0"
+    }
 }
 
 struct TRPCResponse<T: Decodable>: Decodable {
@@ -23,9 +27,10 @@ class TRPCClient {
     
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let data = try! JSONEncoder().encode(input)
+        let data = try! JSONEncoder().encode(TRPCRequest(zero: input))
         components?.queryItems = [
-            URLQueryItem(name: "input", value: "{\"json\":\(String(data: data, encoding: .utf8)!)}")
+            URLQueryItem(name: "batch", value: "1"),
+            URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
         ]
         
         guard let url = components?.url else {
@@ -39,15 +44,15 @@ class TRPCClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let response = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(TRPCResponse<Response>.self, from: response.0).result.data
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response.0)[0].result.data
     }
     
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, input: Request) async throws -> Response {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.httpBody = try JSONEncoder().encode(TRPCRequest(json: input))
+        request.httpBody = try JSONEncoder().encode(TRPCRequest(zero: input))
         
         let response = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(TRPCResponse<Response>.self, from: response.0).result.data
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response.0)[0].result.data
     }
 }

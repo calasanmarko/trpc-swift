@@ -2,26 +2,26 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
     ctx: object;
     meta: object;
     errorShape: import("@trpc/server").DefaultErrorShape;
-    transformer: typeof import("superjson").default;
+    transformer: import("@trpc/server").DefaultDataTransformer;
 }>, {
     layer: import("@trpc/server").CreateRouterInner<import("@trpc/server").RootConfig<{
         ctx: object;
         meta: object;
         errorShape: import("@trpc/server").DefaultErrorShape;
-        transformer: typeof import("superjson").default;
+        transformer: import("@trpc/server").DefaultDataTransformer;
     }>, {
         depth: import("@trpc/server").CreateRouterInner<import("@trpc/server").RootConfig<{
             ctx: object;
             meta: object;
             errorShape: import("@trpc/server").DefaultErrorShape;
-            transformer: typeof import("superjson").default;
+            transformer: import("@trpc/server").DefaultDataTransformer;
         }>, {
             three: import("@trpc/server").BuildProcedure<"query", {
                 _config: import("@trpc/server").RootConfig<{
                     ctx: object;
                     meta: object;
                     errorShape: import("@trpc/server").DefaultErrorShape;
-                    transformer: typeof import("superjson").default;
+                    transformer: import("@trpc/server").DefaultDataTransformer;
                 }>;
                 _meta: object;
                 _ctx_out: object;
@@ -45,17 +45,17 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
                 };
                 _output_in: {
                     message: string;
-                };
+                }[];
                 _output_out: {
                     message: string;
-                };
+                }[];
             }, unknown>;
             four: import("@trpc/server").BuildProcedure<"query", {
                 _config: import("@trpc/server").RootConfig<{
                     ctx: object;
                     meta: object;
                     errorShape: import("@trpc/server").DefaultErrorShape;
-                    transformer: typeof import("superjson").default;
+                    transformer: import("@trpc/server").DefaultDataTransformer;
                 }>;
                 _meta: object;
                 _ctx_out: object;
@@ -78,7 +78,7 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
                 ctx: object;
                 meta: object;
                 errorShape: import("@trpc/server").DefaultErrorShape;
-                transformer: typeof import("superjson").default;
+                transformer: import("@trpc/server").DefaultDataTransformer;
             }>;
             _meta: object;
             _ctx_out: object;
@@ -101,7 +101,7 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
             ctx: object;
             meta: object;
             errorShape: import("@trpc/server").DefaultErrorShape;
-            transformer: typeof import("superjson").default;
+            transformer: import("@trpc/server").DefaultDataTransformer;
         }>;
         _meta: object;
         _ctx_out: object;

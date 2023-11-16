@@ -32,7 +32,7 @@ class AppClient {
                 let message: String
             }
             
-            func three(input: ThreeInput) async throws -> ThreeOutput {
+            func three(input: ThreeInput) async throws -> [ThreeOutput] {
                 return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(fullPath + ".three"), input: input)
             }
             

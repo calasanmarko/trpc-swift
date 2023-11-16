@@ -58,9 +58,9 @@
 				AD0BA7CA2B065E7900F5C0F8 /* Models */,
 				AD0BA7B82B065DC000F5C0F8 /* trpc_swift_demoApp.swift */,
 				AD0BA7BA2B065DC000F5C0F8 /* ContentView.swift */,
+				AD0BA7C82B065E5500F5C0F8 /* TRPCClient.swift */,
 				AD0BA7BC2B065DC000F5C0F8 /* Assets.xcassets */,
 				AD0BA7BE2B065DC000F5C0F8 /* Preview Content */,
-				AD0BA7C82B065E5500F5C0F8 /* TRPCClient.swift */,
 			);
 			path = "trpc-swift-demo";
 			sourceTree = "<group>";

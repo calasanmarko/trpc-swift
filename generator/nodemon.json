@@ -1,5 +1,5 @@
 {
-    "watch": ["src", "debug"],
+    "watch": ["src", "debug", "../demo/src", "../demo/debug"],
     "ext": "*",
     "exec": "yarn run start || exit 0"
 }

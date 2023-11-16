@@ -13,13 +13,20 @@ const depthRouter = router({
         })
             .array(),
     }))
-        .output(z.object({
+        .output(z
+        .object({
         message: z.string(),
-    }))
+    })
+        .array())
         .query((opts) => {
-        return {
-            message: `Depth ${opts.input.other[0].nest}!`,
-        };
+        return [
+            {
+                message: `Depth ${opts.input.other[0].nest}!`,
+            },
+            {
+                message: `Depth ${opts.input.other[0].arr2?.[0]}!`,
+            },
+        ];
     }),
     four: publicProcedure
         .input(z.object({

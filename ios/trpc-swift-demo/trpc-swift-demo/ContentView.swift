@@ -13,14 +13,22 @@ struct ContentView: View {
     var body: some View {
         VStack {
             Button {
-                Task {
-                    print(try! await AppClient.Layer.Depth().four(input: .init(name: "Test"))!)
-                }
+                doQuery()
             } label: {
                 Text("Test")
             }
         }
         .padding()
+        .onAppear {
+            doQuery()
+        }
+    }
+    
+    func doQuery() {
+        Task {
+            print(try! await AppClient.Layer.Depth().three(input: .init(name: "Wooo", other: [.init(nest: 3, bro: .init(), arr: ["AAA"], arr2: ["BBB"])])))
+            print(try! await AppClient.Layer.Depth().four(input: .init(name: "Test"))!)
+        }
     }
 }
 
