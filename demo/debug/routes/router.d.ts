@@ -2,33 +2,45 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
     ctx: object;
     meta: object;
     errorShape: import("@trpc/server").DefaultErrorShape;
-    transformer: import("@trpc/server").DefaultDataTransformer;
+    transformer: typeof import("superjson").default;
 }>, {
     layer: import("@trpc/server").CreateRouterInner<import("@trpc/server").RootConfig<{
         ctx: object;
         meta: object;
         errorShape: import("@trpc/server").DefaultErrorShape;
-        transformer: import("@trpc/server").DefaultDataTransformer;
+        transformer: typeof import("superjson").default;
     }>, {
         depth: import("@trpc/server").CreateRouterInner<import("@trpc/server").RootConfig<{
             ctx: object;
             meta: object;
             errorShape: import("@trpc/server").DefaultErrorShape;
-            transformer: import("@trpc/server").DefaultDataTransformer;
+            transformer: typeof import("superjson").default;
         }>, {
             three: import("@trpc/server").BuildProcedure<"query", {
                 _config: import("@trpc/server").RootConfig<{
                     ctx: object;
                     meta: object;
                     errorShape: import("@trpc/server").DefaultErrorShape;
-                    transformer: import("@trpc/server").DefaultDataTransformer;
+                    transformer: typeof import("superjson").default;
                 }>;
                 _meta: object;
                 _ctx_out: object;
                 _input_in: {
+                    other: {
+                        nest: number;
+                        bro: {};
+                        arr: (string | null)[];
+                        arr2?: (string | null)[] | undefined;
+                    }[];
                     name?: string | undefined;
                 };
                 _input_out: {
+                    other: {
+                        nest: number;
+                        bro: {};
+                        arr: (string | null)[];
+                        arr2?: (string | null)[] | undefined;
+                    }[];
                     name?: string | undefined;
                 };
                 _output_in: {
@@ -43,7 +55,7 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
                     ctx: object;
                     meta: object;
                     errorShape: import("@trpc/server").DefaultErrorShape;
-                    transformer: import("@trpc/server").DefaultDataTransformer;
+                    transformer: typeof import("superjson").default;
                 }>;
                 _meta: object;
                 _ctx_out: object;
@@ -55,10 +67,10 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
                 };
                 _output_in: {
                     message: string;
-                };
+                } | undefined;
                 _output_out: {
                     message: string;
-                };
+                } | undefined;
             }, unknown>;
         }>;
         nested: import("@trpc/server").BuildProcedure<"query", {
@@ -66,7 +78,7 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
                 ctx: object;
                 meta: object;
                 errorShape: import("@trpc/server").DefaultErrorShape;
-                transformer: import("@trpc/server").DefaultDataTransformer;
+                transformer: typeof import("superjson").default;
             }>;
             _meta: object;
             _ctx_out: object;
@@ -89,7 +101,7 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
             ctx: object;
             meta: object;
             errorShape: import("@trpc/server").DefaultErrorShape;
-            transformer: import("@trpc/server").DefaultDataTransformer;
+            transformer: typeof import("superjson").default;
         }>;
         _meta: object;
         _ctx_out: object;

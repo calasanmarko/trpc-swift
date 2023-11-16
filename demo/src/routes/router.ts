@@ -6,6 +6,14 @@ const depthRouter = router({
         .input(
             z.object({
                 name: z.string().optional(),
+                other: z
+                    .object({
+                        nest: z.number(),
+                        bro: z.object({}),
+                        arr: z.array(z.string().nullable()),
+                        arr2: z.array(z.string().nullable()).optional(),
+                    })
+                    .array(),
             })
         )
         .output(
@@ -14,9 +22,8 @@ const depthRouter = router({
             })
         )
         .query((opts) => {
-            const name = opts.input.name ?? "depth";
             return {
-                message: `Depth ${name}!`,
+                message: `Depth ${opts.input.other[0].nest}!`,
             };
         }),
     four: publicProcedure
@@ -26,9 +33,11 @@ const depthRouter = router({
             })
         )
         .output(
-            z.object({
-                message: z.string(),
-            })
+            z
+                .object({
+                    message: z.string(),
+                })
+                .optional()
         )
         .query((opts) => {
             const name = opts.input.name ?? "depth";

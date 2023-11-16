@@ -1,29 +1,35 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.appRouter = void 0;
-const trpc_js_1 = require("../lib/trpc.js");
-const zod_1 = require("zod");
-const depthRouter = (0, trpc_js_1.router)({
-    three: trpc_js_1.publicProcedure
-        .input(zod_1.z.object({
-        name: zod_1.z.string().optional(),
+import { publicProcedure, router } from "../lib/trpc.js";
+import { z } from "zod";
+const depthRouter = router({
+    three: publicProcedure
+        .input(z.object({
+        name: z.string().optional(),
+        other: z
+            .object({
+            nest: z.number(),
+            bro: z.object({}),
+            arr: z.array(z.string().nullable()),
+            arr2: z.array(z.string().nullable()).optional(),
+        })
+            .array(),
     }))
-        .output(zod_1.z.object({
-        message: zod_1.z.string(),
+        .output(z.object({
+        message: z.string(),
     }))
         .query((opts) => {
-        const name = opts.input.name ?? "depth";
         return {
-            message: `Depth ${name}!`,
+            message: `Depth ${opts.input.other[0].nest}!`,
         };
     }),
-    four: trpc_js_1.publicProcedure
-        .input(zod_1.z.object({
-        name: zod_1.z.string().optional(),
+    four: publicProcedure
+        .input(z.object({
+        name: z.string().optional(),
     }))
-        .output(zod_1.z.object({
-        message: zod_1.z.string(),
-    }))
+        .output(z
+        .object({
+        message: z.string(),
+    })
+        .optional())
         .query((opts) => {
         const name = opts.input.name ?? "depth";
         return {
@@ -31,14 +37,14 @@ const depthRouter = (0, trpc_js_1.router)({
         };
     }),
 });
-const nestedRouter = (0, trpc_js_1.router)({
+const nestedRouter = router({
     depth: depthRouter,
-    nested: trpc_js_1.publicProcedure
-        .input(zod_1.z.object({
-        name: zod_1.z.string().optional(),
+    nested: publicProcedure
+        .input(z.object({
+        name: z.string().optional(),
     }))
-        .output(zod_1.z.object({
-        message: zod_1.z.string(),
+        .output(z.object({
+        message: z.string(),
     }))
         .query((opts) => {
         const name = opts.input.name ?? "bested";
@@ -47,14 +53,14 @@ const nestedRouter = (0, trpc_js_1.router)({
         };
     }),
 });
-exports.appRouter = (0, trpc_js_1.router)({
+export const appRouter = router({
     layer: nestedRouter,
-    hello: trpc_js_1.publicProcedure
-        .input(zod_1.z.object({
-        name: zod_1.z.string().optional(),
+    hello: publicProcedure
+        .input(z.object({
+        name: z.string().optional(),
     }))
-        .output(zod_1.z.object({
-        message: zod_1.z.string(),
+        .output(z.object({
+        message: z.string(),
     }))
         .query((opts) => {
         const name = opts.input.name ?? "World";

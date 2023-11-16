@@ -1,17 +1,11 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.appRouter = void 0;
-const express_1 = __importDefault(require("express"));
-const router_js_1 = require("./routes/router.js");
-Object.defineProperty(exports, "appRouter", { enumerable: true, get: function () { return router_js_1.appRouter; } });
-const express_2 = require("@trpc/server/adapters/express");
+import express from "express";
+import { appRouter } from "./routes/router.js";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
+export { appRouter };
 const port = 5050;
-const app = (0, express_1.default)();
-app.use("/trpc", (0, express_2.createExpressMiddleware)({
-    router: router_js_1.appRouter,
+const app = express();
+app.use("/trpc", createExpressMiddleware({
+    router: appRouter,
     responseMeta: (opts) => {
         console.log(`${opts.paths?.join(".")} ->`, opts.data);
         return {};
@@ -21,5 +15,5 @@ app.use("/trpc", (0, express_2.createExpressMiddleware)({
     },
     maxBodySize: undefined,
 }));
-// app.listen(port, () => console.log(`Server running on port ${port}`));
+app.listen(port, () => console.log(`Server running on port ${port}`));
 //# sourceMappingURL=index.js.map

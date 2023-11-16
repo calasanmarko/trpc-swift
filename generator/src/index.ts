@@ -1,8 +1,9 @@
-import { AnyRouter, type ProcedureRouterRecord, type Router } from "@trpc/server";
-import type { RouterDef } from "../node_modules/@trpc/server/src/core/router";
+import { type ProcedureRouterRecord, type Router } from "@trpc/server";
+import type { RouterDef } from "../node_modules/@trpc/server/src/core/router.js";
 import type { AnyProcedure, RootConfig } from "@trpc/server";
 import { appRouter } from "trpc-swift-demo";
 import { writeFileSync } from "fs";
+import { AnyZodObject, ZodAny, ZodArray, ZodFirstPartyTypeKind, ZodNullable, ZodObject, ZodOptional, ZodTypeAny } from "zod";
 
 export type SwiftTRPCRouter<TRecord extends ProcedureRouterRecord> = Router<
     RouterDef<
@@ -27,21 +28,32 @@ export const generateSwiftAppRouter = <TRecord extends ProcedureRouterRecord>(na
         addToNestedStructure(key, procedure as AnyProcedure, nestedStructure);
     });
 
+    let extra = "";
+    extra += "init(baseUrl newBaseUrl: URL) {\n";
+    extra += "baseUrl = newBaseUrl\n";
+    extra += "}\n";
+
     nestedStructure = { [name]: nestedStructure };
-    return generateSwiftRouter(name, nestedStructure[name] as NestedStructure);
+    return generateSwiftRouter(name, "", nestedStructure[name] as NestedStructure, extra);
 };
 
 /**
  * Generates a Swift client router class from the given tRPC router
  * @param router The tRPC router to generate a client for
  */
-export const generateSwiftRouter = (name: string, structure: NestedStructure): string => {
-    let res = `class ${name} {\n`;
+export const generateSwiftRouter = (name: string, fullPath: string, structure: NestedStructure, extra?: string): string => {
+    let res = `class ${capitalizeFirstLetter(name)} {\n`;
+    if (extra) {
+        res += extra + "\n";
+    } else {
+        res += `let fullPath = "${fullPath}"\n\n`;
+    }
+
     Object.entries(structure).forEach(([key, value]) => {
         if ("_def" in value) {
-            res += generateSwiftProcedure(key, value as AnyProcedure);
+            res += generateSwiftProcedure(key, value as AnyProcedure, !fullPath) + "\n";
         } else {
-            res += generateSwiftRouter(key, value as NestedStructure);
+            res += generateSwiftRouter(key, (fullPath ? name + "." : "") + key, value as NestedStructure) + "\n";
         }
     });
     res += "}\n";
@@ -67,12 +79,134 @@ const addToNestedStructure = (key: string, procedure: AnyProcedure, structure: N
  * Generates a Swift client procedure method from the given tRPC procedure
  * @param procedure The tRPC procedure to generate a client method for
  */
-export const generateSwiftProcedure = <TProcedure extends AnyProcedure>(name: string, procedure: TProcedure): string => {
+export const generateSwiftProcedure = <TProcedure extends AnyProcedure>(name: string, procedure: TProcedure, rootPath: boolean): string => {
+    let models = "";
     let res = `func ${name}(`;
 
-    res += ")\n{\n}\n";
+    if (procedure._def.inputs?.length > 0) {
+        const inputName = `${capitalizeFirstLetter(name)}Input`;
+        const input = generateSwiftModel(inputName, procedure._def.inputs[0]);
+        models += input + "\n";
+        res += `input: ${inputName}`;
+    }
+
+    res += ") async throws";
+
+    if (procedure._def.output) {
+        const outputName = `${capitalizeFirstLetter(name)}Output`;
+        let outputValueName = outputName;
+
+        let outputModel = procedure._def.output;
+        if (procedure._def.output instanceof ZodOptional || procedure._def.output instanceof ZodNullable) {
+            outputModel = procedure._def.output._def.innerType;
+            outputValueName = `${outputName}?`;
+        } else if (procedure._def.output instanceof ZodArray) {
+            outputModel = procedure._def.output._def.type;
+            outputValueName = `[${outputName}]`;
+        }
+
+        const output = generateSwiftModel(outputName, outputModel);
+        models += output + "\n";
+        res += ` -> ${outputValueName}`;
+    }
+
+    const pathVal = rootPath ? `"${name}"` : `fullPath + ".${name}"`;
+
+    res += " {\n";
+    if (procedure._def.query) {
+        res += `return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(${pathVal}), input: input)\n`;
+    } else if (procedure._def.mutation) {
+        res += `return try await TRPCClient.shared.sendMutation(url: baseUrl.appendingPathComponent(${pathVal}), input: input)\n`;
+    }
+    res += "}\n";
+    return models + res;
+};
+
+/**
+ * Generate a Swift model class from the given Zod schema
+ */
+export const generateSwiftModel = (name: string, schema: AnyZodObject): string => {
+    let res = `struct ${capitalizeFirstLetter(name)}: Equatable, Codable {\n`;
+    Object.entries(schema.shape).forEach(([key, value]) => {
+        const generatedType = generateSwiftType(key, value as ZodAny);
+        if (generatedType.model) {
+            res += generatedType.model + "\n";
+        }
+        res += `let ${key}: ${generatedType.type}\n`;
+    });
+    res += "}\n";
     return res;
 };
 
-const generated = generateSwiftAppRouter("App", appRouter);
-writeFileSync("./out/App.swift", generated);
+/**
+ * Generate a Swift type from the given Zod schema
+ */
+export const generateSwiftType = (
+    key: string,
+    schema: ZodTypeAny
+): {
+    model?: string;
+    type: string;
+} => {
+    if (schema instanceof ZodObject) {
+        return { model: generateSwiftModel(key + "Type", schema), type: capitalizeFirstLetter(key) + "Type" };
+    } else if (schema instanceof ZodOptional || schema instanceof ZodNullable) {
+        const generated = generateSwiftType(key, schema._def.innerType);
+        return {
+            model: generated.model,
+            type: generated.type + "?",
+        };
+    } else if (schema instanceof ZodArray) {
+        const generated = generateSwiftType(key, schema._def.type);
+        return {
+            model: generated.model,
+            type: "[" + generated.type + "]",
+        };
+    } else {
+        if ("typeName" in schema._def) {
+            switch (schema._def.typeName as ZodFirstPartyTypeKind) {
+                case ZodFirstPartyTypeKind.ZodString:
+                    return { type: "String" };
+                case ZodFirstPartyTypeKind.ZodBigInt:
+                case ZodFirstPartyTypeKind.ZodNumber:
+                    return { type: "Int" };
+                case ZodFirstPartyTypeKind.ZodBoolean:
+                    return { type: "Bool" };
+                case ZodFirstPartyTypeKind.ZodDate:
+                    return { type: "Date" };
+                default:
+                    return { type: "Any" };
+            }
+        }
+        throw new Error("Unknown type");
+    }
+};
+
+/**
+ * Adds indentation to the given Swift code string
+ */
+export const indent = (code: string): string => {
+    const lines = code.split("\n");
+    let indentationLevel = 0;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes("}")) {
+            indentationLevel--;
+        }
+        for (let j = 0; j < indentationLevel; j++) {
+            lines[i] = "    " + lines[i];
+        }
+        if (lines[i].includes("{")) {
+            indentationLevel++;
+        }
+    }
+
+    return lines.join("\n");
+};
+
+const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
+const generated = generateSwiftAppRouter("AppClient", appRouter);
+const formatted = indent(generated);
+writeFileSync("../ios/trpc-swift-demo/trpc-swift-demo/Models/App.swift", "import Foundation\n\nvar baseUrl: URL!\n\n" + formatted);
