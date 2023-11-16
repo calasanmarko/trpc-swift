@@ -26,8 +26,8 @@ struct ContentView: View {
     
     func doQuery() {
         Task {
-            print(try! await AppClient.Layer.Depth().three(input: .init(name: "Wooo", other: [.init(nest: 3, bro: .init(), arr: ["AAA"], arr2: ["BBB"])])))
-            print(try! await AppClient.Layer.Depth().four(input: .init(name: "Test"))!)
+            let res = try! await AppClient.Layer.Depth().igor(input: .init(name: "sdklfjsd", other: [.init(nest: 4, bro: .init(), arr: ["a"], arr2: nil)]))
+            print(res)
         }
     }
 }

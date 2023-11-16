@@ -2,7 +2,26 @@ import Foundation
 
 var baseUrl: URL!
 
+typealias BigObj = AppClient.BigObj
+
 class AppClient {
+    struct BigObj: Equatable, Codable {
+        let name: String?
+        struct OtherType: Equatable, Codable {
+            let nest: Int
+            struct BroType: Equatable, Codable {
+            }
+            
+            let bro: BroType
+            let arr: [String?]
+            let arr2: [String?]?
+        }
+        
+        let other: [OtherType]
+    }
+    
+    
+    
     init(baseUrl newBaseUrl: URL) {
         baseUrl = newBaseUrl
     }
@@ -13,26 +32,11 @@ class AppClient {
         class Depth {
             let fullPath = "layer.depth"
             
-            struct ThreeInput: Equatable, Codable {
-                let name: String?
-                struct OtherType: Equatable, Codable {
-                    let nest: Int
-                    struct BroType: Equatable, Codable {
-                    }
-                    
-                    let bro: BroType
-                    let arr: [String?]
-                    let arr2: [String?]?
-                }
-                
-                let other: [OtherType]
-            }
-            
             struct ThreeOutput: Equatable, Codable {
                 let message: String
             }
             
-            func three(input: ThreeInput) async throws -> [ThreeOutput] {
+            func three(input: BigObj) async throws -> [ThreeOutput] {
                 return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(fullPath + ".three"), input: input)
             }
             

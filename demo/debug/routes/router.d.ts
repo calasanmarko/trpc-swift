@@ -1,3 +1,16 @@
+import { ZodTypeAny } from "zod";
+type ZodSwiftMetadata = {
+    name?: string;
+    description?: string;
+};
+declare module "zod" {
+    interface ZodTypeDef {
+        swift?: ZodSwiftMetadata;
+    }
+    interface ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output> {
+        swift<T extends ZodTypeAny>(this: T, metadata: ZodSwiftMetadata): T;
+    }
+}
 export declare const appRouter: import("@trpc/server").CreateRouterInner<import("@trpc/server").RootConfig<{
     ctx: object;
     meta: object;
@@ -119,3 +132,4 @@ export declare const appRouter: import("@trpc/server").CreateRouterInner<import(
         };
     }, unknown>;
 }>;
+export {};

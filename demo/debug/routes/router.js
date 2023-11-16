@@ -1,18 +1,28 @@
 import { publicProcedure, router } from "../lib/trpc.js";
 import { z } from "zod";
+z.ZodType.prototype.swift = function (metadata) {
+    this._def.swift = metadata;
+    return this;
+};
+const bigObj = z
+    .object({
+    name: z.string().optional(),
+    other: z
+        .object({
+        nest: z.number(),
+        bro: z.object({}),
+        arr: z.array(z.string().nullable()),
+        arr2: z.array(z.string().nullable()).optional(),
+    })
+        .array(),
+})
+    .swift({
+    name: "BigObj",
+    description: "A big object",
+});
 const depthRouter = router({
     three: publicProcedure
-        .input(z.object({
-        name: z.string().optional(),
-        other: z
-            .object({
-            nest: z.number(),
-            bro: z.object({}),
-            arr: z.array(z.string().nullable()),
-            arr2: z.array(z.string().nullable()).optional(),
-        })
-            .array(),
-    }))
+        .input(bigObj)
         .output(z
         .object({
         message: z.string(),

@@ -21,8 +21,15 @@ export type SwiftTRPCRouter<TRecord extends ProcedureRouterRecord> = Router<
 type NestedObject = { [key: string]: any };
 type NestedStructure = { [key: string]: NestedObject | AnyProcedure };
 
-export const generateSwiftAppRouter = <TRecord extends ProcedureRouterRecord>(name: string, router: SwiftTRPCRouter<TRecord>): string => {
+export const generateSwiftAppRouter = <TRecord extends ProcedureRouterRecord>(
+    name: string,
+    router: SwiftTRPCRouter<TRecord>
+): {
+    router: string;
+    models: Set<string>;
+} => {
     let nestedStructure: NestedStructure = {};
+    const models = new Set<string>();
 
     Object.entries(router._def.procedures).forEach(([key, procedure]) => {
         addToNestedStructure(key, procedure as AnyProcedure, nestedStructure);
@@ -34,59 +41,92 @@ export const generateSwiftAppRouter = <TRecord extends ProcedureRouterRecord>(na
     extra += "}\n";
 
     nestedStructure = { [name]: nestedStructure };
-    return generateSwiftRouter(name, "", nestedStructure[name] as NestedStructure, extra);
+    const result = generateSwiftRouter(name, "", nestedStructure[name] as NestedStructure, models, extra);
+
+    const resultLines = result.router.split("\n");
+    resultLines.splice(1, 0, result.models);
+
+    const joinedResult = resultLines.join("\n");
+
+    return {
+        router: joinedResult,
+        models,
+    };
 };
 
 /**
  * Generates a Swift client router class from the given tRPC router
  * @param router The tRPC router to generate a client for
  */
-export const generateSwiftRouter = (name: string, fullPath: string, structure: NestedStructure, extra?: string): string => {
-    let res = `class ${capitalizeFirstLetter(name)} {\n`;
+export const generateSwiftRouter = (
+    name: string,
+    fullPath: string,
+    structure: NestedStructure,
+    existingModels: Set<string>,
+    extra?: string
+): {
+    router: string;
+    models: string;
+} => {
+    let routerCode = `class ${capitalizeFirstLetter(name)} {\n`;
+    let modelCode = "";
+
     if (extra) {
-        res += extra + "\n";
+        routerCode += extra + "\n";
     } else {
-        res += `let fullPath = "${fullPath}"\n\n`;
+        routerCode += `let fullPath = "${fullPath}"\n\n`;
     }
 
     Object.entries(structure).forEach(([key, value]) => {
         if ("_def" in value) {
-            res += generateSwiftProcedure(key, value as AnyProcedure, !fullPath) + "\n";
+            const result = generateSwiftProcedure(key, value as AnyProcedure, !fullPath, existingModels);
+            routerCode += result.procedure + "\n";
+            modelCode += result.globalModels;
         } else {
-            res += generateSwiftRouter(key, (fullPath ? name + "." : "") + key, value as NestedStructure) + "\n";
+            const result = generateSwiftRouter(key, (fullPath ? name + "." : "") + key, value as NestedStructure, existingModels);
+            routerCode += result.router + "\n";
+            modelCode += result.models + "\n";
         }
     });
-    res += "}\n";
-    return res;
-};
-
-const addToNestedStructure = (key: string, procedure: AnyProcedure, structure: NestedStructure) => {
-    const parentRouters = key.split(".").slice(0, -1);
-    const procedureName = key.split(".").slice(-1)[0];
-
-    let currentObject = structure;
-    parentRouters.forEach((routerName) => {
-        if (currentObject[routerName] === undefined) {
-            currentObject[routerName] = {};
-        }
-        currentObject = currentObject[routerName] as NestedObject;
-    });
-
-    currentObject[procedureName] = procedure;
+    routerCode += "}\n";
+    return {
+        router: routerCode,
+        models: modelCode,
+    };
 };
 
 /**
  * Generates a Swift client procedure method from the given tRPC procedure
  * @param procedure The tRPC procedure to generate a client method for
  */
-export const generateSwiftProcedure = <TProcedure extends AnyProcedure>(name: string, procedure: TProcedure, rootPath: boolean): string => {
+export const generateSwiftProcedure = <TProcedure extends AnyProcedure>(
+    name: string,
+    procedure: TProcedure,
+    rootPath: boolean,
+    existingModels: Set<string>
+): {
+    procedure: string;
+    globalModels: string;
+} => {
+    let globalModels = "";
     let models = "";
     let res = `func ${name}(`;
 
     if (procedure._def.inputs?.length > 0) {
-        const inputName = `${capitalizeFirstLetter(name)}Input`;
-        const input = generateSwiftModel(inputName, procedure._def.inputs[0]);
-        models += input + "\n";
+        let inputName = "";
+        const schema: AnyZodObject = procedure._def.inputs[0];
+        if (schema._def.swift?.name) {
+            inputName = schema._def.swift.name;
+            if (!existingModels.has(inputName)) {
+                globalModels += generateSwiftModel(inputName, schema);
+                existingModels.add(inputName);
+            }
+        } else {
+            inputName = `${capitalizeFirstLetter(name)}Input`;
+            const input = generateSwiftModel(inputName, schema);
+            models += input + "\n";
+        }
+
         res += `input: ${inputName}`;
     }
 
@@ -119,7 +159,10 @@ export const generateSwiftProcedure = <TProcedure extends AnyProcedure>(name: st
         res += `return try await TRPCClient.shared.sendMutation(url: baseUrl.appendingPathComponent(${pathVal}), input: input)\n`;
     }
     res += "}\n";
-    return models + res;
+    return {
+        procedure: models + res,
+        globalModels,
+    };
 };
 
 /**
@@ -207,6 +250,27 @@ const capitalizeFirstLetter = (string: string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
+const addToNestedStructure = (key: string, procedure: AnyProcedure, structure: NestedStructure) => {
+    const parentRouters = key.split(".").slice(0, -1);
+    const procedureName = key.split(".").slice(-1)[0];
+
+    let currentObject = structure;
+    parentRouters.forEach((routerName) => {
+        if (currentObject[routerName] === undefined) {
+            currentObject[routerName] = {};
+        }
+        currentObject = currentObject[routerName] as NestedObject;
+    });
+
+    currentObject[procedureName] = procedure;
+};
+
 const generated = generateSwiftAppRouter("AppClient", appRouter);
-const formatted = indent(generated);
+let code = generated.router;
+
+generated.models.forEach((model) => {
+    code = `typealias ${model} = AppClient.${model}\n\n${code}`;
+});
+
+const formatted = indent(code);
 writeFileSync("../ios/trpc-swift-demo/trpc-swift-demo/Models/App.swift", "import Foundation\n\nvar baseUrl: URL!\n\n" + formatted);
