@@ -16,7 +16,6 @@
     "dependencies": {
         "@trpc/server": "^10.43.3",
         "express": "^4.18.2",
-        "superjson": "^2.2.1",
         "zod": "^3.22.4"
     },
     "devDependencies": {
