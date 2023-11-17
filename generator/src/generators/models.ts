@@ -1,6 +1,6 @@
-import { AnyZodObject, ZodArray, ZodEffects, ZodFirstPartyTypeKind, ZodNullable, ZodOptional, ZodType, z } from "zod";
+import { AnyZodObject, ZodArray, ZodEffects, ZodEnum, ZodFirstPartyTypeKind, ZodNullable, ZodOptional, ZodType, z } from "zod";
 import { SwiftModelGenerationData, extendZodWithSwift } from "../types.js";
-import { processTypeName } from "../utility.js";
+import { processFieldName, processTypeName } from "../utility.js";
 
 extendZodWithSwift(z);
 
@@ -17,6 +17,8 @@ export const zodSchemaToSwiftType = (
         switch (schema._def.typeName as ZodFirstPartyTypeKind) {
             case ZodFirstPartyTypeKind.ZodObject:
                 return zodObjectToSwiftType(schema as AnyZodObject, globalModels, fallbackName);
+            case ZodFirstPartyTypeKind.ZodEnum:
+                return zodEnumToSwiftType(schema as ZodEnum<[string, ...string[]]>, globalModels, fallbackName);
             case ZodFirstPartyTypeKind.ZodOptional:
             case ZodFirstPartyTypeKind.ZodNullable:
                 return zodOptionalOrNullableToSwiftType(
@@ -57,38 +59,38 @@ const zodObjectToSwiftType = (
     swiftTypeSignature: string;
     swiftLocalModel?: string;
 } => {
-    const zodSwiftName = schema._def.swift?.name;
-    console.log("ZODNAME", zodSwiftName);
-    if (zodSwiftName) {
-        if (globalModels.names.has(zodSwiftName)) {
-            return {
-                swiftTypeSignature: zodSwiftName,
-            };
-        }
-        globalModels.names.add(zodSwiftName);
-    }
+    return wrapZodSchemaWithModels(schema, globalModels, fallbackName, (name) => {
+        let swiftModel = `struct ${name}: Codable, Equatable {\n`;
+        Object.entries(schema.shape).forEach(([key, value]) => {
+            const childType = zodSchemaToSwiftType(value as ZodType, globalModels, processTypeName(key));
+            if (childType.swiftLocalModel) {
+                swiftModel += childType.swiftLocalModel;
+            }
+            swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
+        });
+        swiftModel += "}\n";
 
-    const swiftTypeSignature = processTypeName(zodSwiftName ?? fallbackName);
-
-    let swiftModel = `struct ${swiftTypeSignature}: Codable, Equatable {\n`;
-    Object.entries(schema.shape).forEach(([key, value]) => {
-        const childType = zodSchemaToSwiftType(value as ZodType, globalModels, processTypeName(key + "Type"));
-        if (childType.swiftLocalModel) {
-            swiftModel += childType.swiftLocalModel;
-        }
-        swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
+        return swiftModel;
     });
-    swiftModel += "}\n";
+};
 
-    const swiftLocalModel = zodSwiftName ? undefined : swiftModel;
-    if (zodSwiftName) {
-        globalModels.swiftCode += swiftModel;
-    }
+const zodEnumToSwiftType = (
+    schema: ZodEnum<[string, ...string[]]>,
+    globalModels: SwiftModelGenerationData,
+    fallbackName: string
+): {
+    swiftTypeSignature: string;
+    swiftLocalModel?: string;
+} => {
+    return wrapZodSchemaWithModels(schema, globalModels, fallbackName, (name) => {
+        let swiftModel = `enum ${name}: String {\n`;
+        schema._def.values.forEach((value) => {
+            swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
+        });
+        swiftModel += "}\n";
 
-    return {
-        swiftTypeSignature,
-        swiftLocalModel,
-    };
+        return swiftModel;
+    });
 };
 
 const zodOptionalOrNullableToSwiftType = (
@@ -135,5 +137,37 @@ const zodEffectsToSwiftType = (
     return {
         swiftTypeSignature: unwrappedResult.swiftTypeSignature,
         swiftLocalModel: unwrappedResult.swiftLocalModel,
+    };
+};
+
+const wrapZodSchemaWithModels = (
+    schema: AnyZodObject | ZodEnum<[string, ...string[]]>,
+    globalModels: SwiftModelGenerationData,
+    fallbackName: string,
+    modelGenerator: (name: string) => string
+): {
+    swiftTypeSignature: string;
+    swiftLocalModel?: string;
+} => {
+    const zodSwiftName = schema._def.swift?.name;
+    if (zodSwiftName) {
+        if (globalModels.names.has(zodSwiftName)) {
+            return {
+                swiftTypeSignature: zodSwiftName,
+            };
+        }
+        globalModels.names.add(zodSwiftName);
+    }
+
+    const swiftTypeSignature = processTypeName(zodSwiftName ?? fallbackName);
+    const swiftModel = modelGenerator(swiftTypeSignature);
+    const swiftLocalModel = zodSwiftName ? undefined : swiftModel;
+    if (zodSwiftName) {
+        globalModels.swiftCode += swiftModel;
+    }
+
+    return {
+        swiftTypeSignature,
+        swiftLocalModel,
     };
 };
