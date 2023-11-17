@@ -14,7 +14,7 @@
     "scripts": {
         "start": "node ./dist/index.js",
         "watch": "tsc --watch",
-        "build": "tsc",
+        "build": "tsc && cp -rf ./templates ./dist",
         "clean": "rimraf tsconfig.tsbuildinfo && rimraf -g dist/*",
         "lint": "prettier --check . && eslint .",
         "format": "prettier --write . **/*.{js,ts,json}"
