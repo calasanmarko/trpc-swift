@@ -4,13 +4,31 @@ class AppClient: TRPCClientData {
     lazy var layer = Layer(clientData: self)
     
     var baseUrl: URL
+    var baseMiddlewares: [TRPCMiddleware] = []
     
     var url: URL {
         baseUrl
     }
     
+    var middlewares: [TRPCMiddleware] {
+        baseMiddlewares
+    }
+    
     init(baseUrl: URL) {
         self.baseUrl = baseUrl
+    }
+    
+    struct BigObj: Codable, Equatable {
+        var name: String?
+        struct Other: Codable, Equatable {
+            var nest: Int
+            struct Bro: Codable, Equatable {
+            }
+            var bro: Bro
+            var arr: [String?]
+            var arr2: [String?]?
+        }
+        var other: [Other]
     }
     
     class Layer: TRPCClientData {
@@ -20,6 +38,10 @@ class AppClient: TRPCClientData {
         
         var url: URL {
             clientData.url.appendingPathComponent("layer")
+        }
+        
+        var middlewares: [TRPCMiddleware] {
+            clientData.middlewares
         }
         
         init(clientData: TRPCClientData) {
@@ -33,21 +55,12 @@ class AppClient: TRPCClientData {
                 clientData.url.appendingPathExtension("depth")
             }
             
-            init(clientData: TRPCClientData) {
-                self.clientData = clientData
+            var middlewares: [TRPCMiddleware] {
+                clientData.middlewares
             }
             
-            struct BigObj: Codable, Equatable {
-                var name: String?
-                struct OtherType: Codable, Equatable {
-                    var nest: Int
-                    struct BroType: Codable, Equatable {
-                    }
-                    var bro: BroType
-                    var arr: [String?]
-                    var arr2: [String?]?
-                }
-                var other: [OtherType]
+            init(clientData: TRPCClientData) {
+                self.clientData = clientData
             }
             
             struct ThreeOutputType: Codable, Equatable {
@@ -56,7 +69,7 @@ class AppClient: TRPCClientData {
             
             
             func three(input: BigObj) async throws -> [ThreeOutputType] {
-                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("three"), input: input)
+                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("three"), middlewares: middlewares, input: input)
             }
             struct FourInputType: Codable, Equatable {
                 var name: String?
@@ -68,7 +81,7 @@ class AppClient: TRPCClientData {
             
             
             func four(input: FourInputType) async throws -> FourOutputType? {
-                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("four"), input: input)
+                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("four"), middlewares: middlewares, input: input)
             }
         }
         struct NestedInputType: Codable, Equatable {
@@ -81,7 +94,7 @@ class AppClient: TRPCClientData {
         
         
         func nested(input: NestedInputType) async throws -> NestedOutputType {
-            return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("nested"), input: input)
+            return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("nested"), middlewares: middlewares, input: input)
         }
     }
     struct HelloInputType: Codable, Equatable {
@@ -94,6 +107,6 @@ class AppClient: TRPCClientData {
     
     
     func hello(input: HelloInputType) async throws -> HelloOutputType {
-        return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("hello"), input: input)
+        return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("hello"), middlewares: middlewares, input: input)
     }
 }

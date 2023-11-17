@@ -67,9 +67,13 @@ export const trpcStructureToSwiftClass = (
     }
 
     if (metadata.isRoot) {
-        swiftClass += "var baseUrl: URL\n\n";
+        swiftClass += "var baseUrl: URL\n";
+        swiftClass += "var baseMiddlewares: [TRPCMiddleware] = []\n\n";
         swiftClass += "var url: URL {\n";
         swiftClass += "baseUrl\n";
+        swiftClass += "}\n\n";
+        swiftClass += "var middlewares: [TRPCMiddleware] {\n";
+        swiftClass += "baseMiddlewares\n";
         swiftClass += "}\n\n";
         swiftClass += "init(baseUrl: URL) {\n";
         swiftClass += "self.baseUrl = baseUrl\n";
@@ -82,6 +86,9 @@ export const trpcStructureToSwiftClass = (
         } else {
             swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
         }
+        swiftClass += "}\n\n";
+        swiftClass += "var middlewares: [TRPCMiddleware] {\n";
+        swiftClass += "clientData.middlewares\n";
         swiftClass += "}\n\n";
         swiftClass += "init(clientData: TRPCClientData) {\n";
         swiftClass += "self.clientData = clientData\n";
@@ -144,9 +151,9 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
     swiftMethod += " {\n";
 
     if (procedure._def.query) {
-        swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), input: input)\n`;
+        swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: input)\n`;
     } else if (procedure._def.mutation) {
-        swiftMethod += `return try await TRPCClient.shared.sendMutation(url: url.appendingPathExtension("${name}"), input: input)\n`;
+        swiftMethod += `return try await TRPCClient.shared.sendMutation(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: input)\n`;
     } else {
         throw new Error("Unsupported procedure type.");
     }

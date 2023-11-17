@@ -1,5 +1,5 @@
-// import "./demo/express.js";
-// import { appRouter } from "./demo/routes/router.js";
+import "./demo/express.js";
+import { appRouter } from "./demo/routes/router.js";
 import { writeFileSync } from "fs";
 import { getTRPCStructure, trpcStructureToSwiftClass } from "./generators/router.js";
 import { indentSwiftCode } from "./utility.js";
@@ -21,4 +21,4 @@ export const trpcRouterToSwiftFile = (name: string, routerDef: SwiftTRPCRouterDe
     writeFileSync(outFile, generated);
 };
 
-// trpcRouterToSwiftFile("AppClient", appRouter._def, "../ios/trpc-swift-demo/trpc-swift-demo/Models/App.swift");
+trpcRouterToSwiftFile("AppClient", appRouter._def, "../ios/trpc-swift-demo/trpc-swift-demo/Models/App.swift");
