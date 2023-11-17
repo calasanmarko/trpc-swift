@@ -1,18 +1,21 @@
 {
     "name": "trpc-swift",
     "version": "0.1.0",
-    "main": "debug/index.js",
+    "description": "Generates Swift clients and models from tRPC routers.",
+    "repository": "https://github.com/calasanmarko/trpc-swift.git",
+    "author": "Marko Calasan <calasanmarko@hotmail.com>",
+    "main": "dist/index.js",
     "bin": {
-        "trpc-swift": "debug/cli.js"
+        "trpc-swift": "dist/cli.js"
     },
     "license": "MIT",
     "type": "module",
     "private": true,
     "scripts": {
-        "start": "node ./debug/index.js",
+        "start": "node ./dist/index.js",
         "watch": "tsc --watch",
         "build": "tsc",
-        "clean": "rimraf tsconfig.tsbuildinfo && rimraf -g debug/*",
+        "clean": "rimraf tsconfig.tsbuildinfo && rimraf -g dist/*",
         "lint": "prettier --check . && eslint .",
         "format": "prettier --write . **/*.{js,ts,json}"
     },
