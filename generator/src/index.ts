@@ -1,3 +1,4 @@
+import "./demo/express.js";
 import { appRouter } from "./demo/routes/router.js";
 import { writeFileSync } from "fs";
 import { SwiftTRPCRouter } from "./types.js";
@@ -6,7 +7,7 @@ import { indentSwiftCode } from "./utility.js";
 
 export const trpcRouterToSwiftClient = (name: string, router: SwiftTRPCRouter): string => {
     const trpcStructure = getTRPCStructure(router);
-    const swiftClass = trpcStructureToSwiftClass(name, trpcStructure, { isRoot: true });
+    const swiftClass = trpcStructureToSwiftClass(name, trpcStructure, { isRoot: true, depth: 0 });
 
     let swiftClient = "import Foundation \n\n";
     swiftClient += swiftClass;

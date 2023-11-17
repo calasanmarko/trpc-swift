@@ -56,3 +56,7 @@ class TRPCClient {
         return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response.0)[0].result.data
     }
 }
+
+protocol TRPCClientData: AnyObject {
+    var url: URL { get }
+}

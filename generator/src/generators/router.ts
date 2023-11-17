@@ -30,29 +30,16 @@ export const trpcStructureToSwiftClass = (
     metadata:
         | {
               isRoot: true;
-              fullPath: string;
+              depth: 0;
               globalModels?: never;
           }
         | {
               isRoot?: never;
-              fullPath: string;
+              depth: number;
               globalModels: SwiftModelGenerationData;
           }
 ): string => {
-    let swiftClass = `class ${processTypeName(name)} {\n`;
-
-    if (metadata.isRoot) {
-        swiftClass += "var url: URL\n\n";
-        swiftClass += "init(url: URL) {\n";
-        swiftClass += "self.url = url\n";
-        swiftClass += "}\n";
-    } else {
-        swiftClass += "var url: URL {\n";
-        swiftClass += `AppClient.shared.url.appendingComponents(".${name}")\n`;
-        swiftClass += "}\n";
-    }
-
-    swiftClass += "\n";
+    let swiftClass = `class ${processTypeName(name)}: TRPCClientData {\n`;
 
     const resolvedGlobalModels = metadata.globalModels ?? {
         swiftCode: "",
@@ -60,14 +47,48 @@ export const trpcStructureToSwiftClass = (
     };
 
     let innerSwiftCode = "";
+    const childStructureNames: string[] = [];
 
     Object.entries(structure).forEach(([key, value]) => {
         if (isProcedure(value)) {
             innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, resolvedGlobalModels);
         } else {
-            innerSwiftCode += trpcStructureToSwiftClass(key, value, { globalModels: resolvedGlobalModels });
+            innerSwiftCode += trpcStructureToSwiftClass(key, value, { depth: metadata.depth + 1, globalModels: resolvedGlobalModels });
+            childStructureNames.push(key);
         }
     });
+
+    childStructureNames.forEach((child) => {
+        swiftClass += `lazy var ${child} = ${processTypeName(child)}(clientData: self)\n`;
+    });
+
+    if (childStructureNames.length > 0) {
+        swiftClass += "\n";
+    }
+
+    if (metadata.isRoot) {
+        swiftClass += "var baseUrl: URL\n\n";
+        swiftClass += "var url: URL {\n";
+        swiftClass += "baseUrl\n";
+        swiftClass += "}\n\n";
+        swiftClass += "init(baseUrl: URL) {\n";
+        swiftClass += "self.baseUrl = baseUrl\n";
+        swiftClass += "}\n";
+    } else {
+        swiftClass += "let clientData: TRPCClientData\n\n";
+        swiftClass += "var url: URL {\n";
+        if (metadata.depth === 1) {
+            swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
+        } else {
+            swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
+        }
+        swiftClass += "}\n\n";
+        swiftClass += "init(clientData: TRPCClientData) {\n";
+        swiftClass += "self.clientData = clientData\n";
+        swiftClass += "}\n";
+    }
+
+    swiftClass += "\n";
 
     if (metadata.isRoot && resolvedGlobalModels.swiftCode) {
         swiftClass += resolvedGlobalModels.swiftCode + "\n";
@@ -119,9 +140,9 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
     swiftMethod += " {\n";
 
     if (procedure._def.query) {
-        swiftMethod += "return try await TRPCClient.shared.sendQuery(url: url, input: input)\n";
+        swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), input: input)\n`;
     } else if (procedure._def.mutation) {
-        swiftMethod += "return try await TRPCClient.shared.sendMutation(url: url, input: input\n";
+        swiftMethod += `return try await TRPCClient.shared.sendMutation(url: url.appendingPathExtension("${name}"), input: input)\n`;
     } else {
         throw new Error("Unsupported procedure type.");
     }

@@ -1,19 +1,40 @@
 import Foundation 
 
-class AppClient {
-    var url: URL
-    init(url: URL) {
-        self.url = url
+class AppClient: TRPCClientData {
+    lazy var layer = Layer(clientData: self)
+    
+    var baseUrl: URL
+    
+    var url: URL {
+        baseUrl
     }
     
-    class Layer {
+    init(baseUrl: URL) {
+        self.baseUrl = baseUrl
+    }
+    
+    class Layer: TRPCClientData {
+        lazy var depth = Depth(clientData: self)
+        
+        let clientData: TRPCClientData
+        
         var url: URL {
-            AppClient.shared.url.appendingComponents(".layer")
+            clientData.url.appendingPathComponent("layer")
         }
         
-        class Depth {
+        init(clientData: TRPCClientData) {
+            self.clientData = clientData
+        }
+        
+        class Depth: TRPCClientData {
+            let clientData: TRPCClientData
+            
             var url: URL {
-                AppClient.shared.url.appendingComponents(".depth")
+                clientData.url.appendingPathExtension("depth")
+            }
+            
+            init(clientData: TRPCClientData) {
+                self.clientData = clientData
             }
             
             struct BigObj: Codable, Equatable {
@@ -35,7 +56,7 @@ class AppClient {
             
             
             func three(input: BigObj) async throws -> [ThreeOutputType] {
-                return try await TRPCClient.shared.sendQuery(url: url, input: input)
+                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("three"), input: input)
             }
             struct FourInputType: Codable, Equatable {
                 var name: String?
@@ -47,7 +68,7 @@ class AppClient {
             
             
             func four(input: FourInputType) async throws -> FourOutputType? {
-                return try await TRPCClient.shared.sendQuery(url: url, input: input)
+                return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("four"), input: input)
             }
         }
         struct NestedInputType: Codable, Equatable {
@@ -60,7 +81,7 @@ class AppClient {
         
         
         func nested(input: NestedInputType) async throws -> NestedOutputType {
-            return try await TRPCClient.shared.sendQuery(url: url, input: input)
+            return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("nested"), input: input)
         }
     }
     struct HelloInputType: Codable, Equatable {
@@ -73,6 +94,6 @@ class AppClient {
     
     
     func hello(input: HelloInputType) async throws -> HelloOutputType {
-        return try await TRPCClient.shared.sendQuery(url: url, input: input)
+        return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("hello"), input: input)
     }
 }
