@@ -1,15 +1,23 @@
 export const processTypeName = (name: string) => {
-    return name.charAt(0).toUpperCase() + name.slice(1);
+    const processedName = snakeToCamelCase(name);
+    return processedName.charAt(0).toUpperCase() + processedName.slice(1);
 };
 
 export const processFieldName = (name: string): string => {
     const reservedFields = ["internal"];
 
-    if (reservedFields.includes(name)) {
+    const processedName = snakeToCamelCase(name);
+    if (reservedFields.includes(processedName)) {
         return `_${name}`;
     }
 
-    return name;
+    return processedName;
+};
+
+export const snakeToCamelCase = (name: string): string => {
+    return name.replace(/([-_][a-z])/gi, ($1) => {
+        return $1.toUpperCase().replace("-", "").replace("_", "");
+    });
 };
 
 export const indentSwiftCode = (code: string, spaces: number = 4): string => {
