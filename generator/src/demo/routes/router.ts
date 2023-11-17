@@ -1,26 +1,8 @@
+import { extendZodWithSwift } from "../../types.js";
 import { publicProcedure, router } from "../lib/trpc.js";
-import { ZodTypeAny, z } from "zod";
+import { z } from "zod";
 
-type ZodSwiftMetadata = {
-    name?: string;
-    description?: string;
-};
-
-declare module "zod" {
-    interface ZodTypeDef {
-        swift?: ZodSwiftMetadata;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    interface ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output> {
-        swift<T extends ZodTypeAny>(this: T, metadata: ZodSwiftMetadata): T;
-    }
-}
-
-z.ZodType.prototype.swift = function (metadata: ZodSwiftMetadata) {
-    this._def.swift = metadata;
-    return this;
-};
+extendZodWithSwift(z);
 
 const bigObj = z
     .object({

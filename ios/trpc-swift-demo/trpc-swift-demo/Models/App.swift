@@ -1,83 +1,78 @@
-import Foundation
-
-var baseUrl: URL!
-
-typealias BigObj = AppClient.BigObj
+import Foundation 
 
 class AppClient {
-    struct BigObj: Equatable, Codable {
-        let name: String?
-        struct OtherType: Equatable, Codable {
-            let nest: Int
-            struct BroType: Equatable, Codable {
-            }
-            
-            let bro: BroType
-            let arr: [String?]
-            let arr2: [String?]?
-        }
-        
-        let other: [OtherType]
-    }
-    
-    
-    
-    init(baseUrl newBaseUrl: URL) {
-        baseUrl = newBaseUrl
+    var url: URL
+    init(url: URL) {
+        self.url = url
     }
     
     class Layer {
-        let fullPath = "layer"
+        var url: URL {
+            AppClient.shared.url.appendingComponents(".layer")
+        }
         
         class Depth {
-            let fullPath = "layer.depth"
-            
-            struct ThreeOutput: Equatable, Codable {
-                let message: String
+            var url: URL {
+                AppClient.shared.url.appendingComponents(".depth")
             }
             
-            func three(input: BigObj) async throws -> [ThreeOutput] {
-                return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(fullPath + ".three"), input: input)
+            struct BigObj: Codable, Equatable {
+                var name: String?
+                struct OtherType: Codable, Equatable {
+                    var nest: Int
+                    struct BroType: Codable, Equatable {
+                    }
+                    var bro: BroType
+                    var arr: [String?]
+                    var arr2: [String?]?
+                }
+                var other: [OtherType]
             }
             
-            struct FourInput: Equatable, Codable {
-                let name: String?
+            struct ThreeOutputType: Codable, Equatable {
+                var message: String
             }
             
-            struct FourOutput: Equatable, Codable {
-                let message: String
+            
+            func three(input: BigObj) async throws -> [ThreeOutputType] {
+                return try await TRPCClient.shared.sendQuery(url: url, input: input)
+            }
+            struct FourInputType: Codable, Equatable {
+                var name: String?
             }
             
-            func four(input: FourInput) async throws -> FourOutput? {
-                return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(fullPath + ".four"), input: input)
+            struct FourOutputType: Codable, Equatable {
+                var message: String
             }
             
+            
+            func four(input: FourInputType) async throws -> FourOutputType? {
+                return try await TRPCClient.shared.sendQuery(url: url, input: input)
+            }
+        }
+        struct NestedInputType: Codable, Equatable {
+            var name: String?
         }
         
-        struct NestedInput: Equatable, Codable {
-            let name: String?
+        struct NestedOutputType: Codable, Equatable {
+            var message: String
         }
         
-        struct NestedOutput: Equatable, Codable {
-            let message: String
-        }
         
-        func nested(input: NestedInput) async throws -> NestedOutput {
-            return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent(fullPath + ".nested"), input: input)
+        func nested(input: NestedInputType) async throws -> NestedOutputType {
+            return try await TRPCClient.shared.sendQuery(url: url, input: input)
         }
-        
+    }
+    struct HelloInputType: Codable, Equatable {
+        var name: String?
     }
     
-    struct HelloInput: Equatable, Codable {
-        let name: String?
+    struct HelloOutputType: Codable, Equatable {
+        var message: String
     }
     
-    struct HelloOutput: Equatable, Codable {
-        let message: String
-    }
     
-    func hello(input: HelloInput) async throws -> HelloOutput {
-        return try await TRPCClient.shared.sendQuery(url: baseUrl.appendingPathComponent("hello"), input: input)
+    func hello(input: HelloInputType) async throws -> HelloOutputType {
+        return try await TRPCClient.shared.sendQuery(url: url, input: input)
     }
-    
 }

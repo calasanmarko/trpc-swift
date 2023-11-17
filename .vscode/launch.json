@@ -2,27 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Demo",
-            "request": "launch",
-            "type": "node",
-            "runtimeExecutable": "nodemon",
-            "cwd": "${workspaceFolder}/demo"
-        },
-        {
             "name": "Generator",
             "request": "launch",
             "type": "node",
             "runtimeExecutable": "nodemon",
             "cwd": "${workspaceFolder}/generator"
-        },
-        {
-            "name": "Compile Demo",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "yarn",
-            "runtimeArgs": ["run", "watch"],
-            "cwd": "${workspaceFolder}/demo",
-            "console": "integratedTerminal"
         },
         {
             "name": "Compile Generator",
@@ -37,7 +21,7 @@
     "compounds": [
         {
             "name": "TRPC-Swift",
-            "configurations": ["Generator", "Compile Demo", "Compile Generator"]
+            "configurations": ["Generator", "Compile Generator"]
         }
     ]
 }

@@ -1,7 +1,6 @@
 {
     "workspaces": {
         "packages": [
-            "demo",
             "generator"
         ],
         "nohoist": [

@@ -1,9 +1,0 @@
-.DS_Store
-node_modules
-/build
-/debug
-/release
-.env
-.env.*
-!.env.example
-yarn.lock
