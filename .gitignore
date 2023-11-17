@@ -134,3 +134,4 @@ dist
 .pnp.*
 
 UserInterfaceState.xcuserstate
+.DS_Store

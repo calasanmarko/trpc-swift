@@ -1,4 +1,4 @@
-import { Procedure, ProcedureParams, RootConfig } from "@trpc/server";
+import { Procedure, ProcedureParams, ProcedureRouterRecord, RootConfig } from "@trpc/server";
 import { RouterDef } from "../node_modules/@trpc/server/src/core/router.js";
 import { ZodTypeAny, z } from "zod";
 
@@ -10,13 +10,13 @@ export type GenericProcedure = Procedure<"query" | "mutation" | "subscription", 
 
 export type SwiftTRPCRouterDef = RouterDef<
     RootConfig<{
-        transformer: any;
-        errorShape: any;
-        ctx: any;
-        meta: any;
+        transformer: unknown;
+        errorShape: unknown;
+        ctx: never;
+        meta: never;
     }>,
-    any,
-    any
+    ProcedureRouterRecord,
+    never
 >;
 
 export type SwiftModelGenerationData = {
@@ -34,8 +34,7 @@ declare module "zod" {
         swift?: ZodSwiftMetadata;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    interface ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output> {
+    interface ZodType {
         swift<T extends ZodTypeAny>(this: T, metadata: ZodSwiftMetadata): T;
     }
 }

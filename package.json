@@ -1,15 +1,32 @@
 {
-    "workspaces": {
-        "packages": [
-            "generator"
-        ],
-        "nohoist": [
-            "**/@trpc/**"
-        ]
+    "name": "trpc-swift",
+    "version": "0.1.0",
+    "main": "debug/index.js",
+    "bin": {
+        "trpc-swift": "debug/cli.js"
     },
+    "license": "MIT",
+    "type": "module",
     "private": true,
-    "dependencies": {},
+    "scripts": {
+        "start": "node ./debug/index.js",
+        "watch": "tsc --watch",
+        "build": "tsc",
+        "clean": "rimraf tsconfig.tsbuildinfo && rimraf -g debug/*",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write . **/*.{js,ts,json}"
+    },
+    "dependencies": {
+        "zod": "^3.22.4"
+    },
     "devDependencies": {
-        "lerna": "^7.4.1"
+        "@trpc/server": "^10.43.3",
+        "@types/node": "^20.9.0",
+        "@typescript-eslint/eslint-plugin": "^6.11.0",
+        "@typescript-eslint/parser": "^6.11.0",
+        "eslint": "^8.53.0",
+        "eslint-config-prettier": "^9.0.0",
+        "prettier": "^3.1.0",
+        "typescript": "^5.2.2"
     }
 }

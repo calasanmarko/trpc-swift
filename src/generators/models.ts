@@ -47,7 +47,7 @@ export const zodSchemaToSwiftType = (
         }
     }
 
-    console.error("Unsupported schema type.", schema);
+    console.error("Unsupported schema type:", (schema._def as { typeName: ZodFirstPartyTypeKind }).typeName);
     return { swiftTypeSignature: "Any?" };
 };
 

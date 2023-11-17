@@ -44,15 +44,14 @@ if (!options.routerName || !options.routerPath || !options.outputPath) {
     process.exit(1);
 }
 
-console.log(options.routerPath);
-const module = await import(path.join(process.cwd(), "../../payroll/api/debug/routes/router.js"));
+const module = await import(path.join(process.cwd(), options.routerPath));
 const router = module[options.routerName];
 if (!router) {
     console.error(`Could not find router ${options.routerName} in ${options.routerPath}`);
     process.exit(1);
 }
 
-const generatedCode = trpcRouterToSwiftClient(options.routerName, router);
+const generatedCode = trpcRouterToSwiftClient(options.routerName, router._def);
 writeFileSync(options.outputPath, generatedCode);
 
 console.log(`Generated TRPC Swift client for ${options.routerName} in ${options.outputPath}`);

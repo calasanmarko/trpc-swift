@@ -5,8 +5,7 @@
             "name": "Generator",
             "request": "launch",
             "type": "node",
-            "runtimeExecutable": "nodemon",
-            "cwd": "${workspaceFolder}/generator"
+            "runtimeExecutable": "nodemon"
         },
         {
             "name": "Compile Generator",
@@ -14,7 +13,6 @@
             "request": "launch",
             "runtimeExecutable": "yarn",
             "runtimeArgs": ["run", "watch"],
-            "cwd": "${workspaceFolder}/generator",
             "console": "integratedTerminal"
         }
     ],
