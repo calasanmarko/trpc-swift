@@ -2,6 +2,16 @@ export const processTypeName = (name: string) => {
     return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
+export const processFieldName = (name: string): string => {
+    const reservedFields = ["internal"];
+
+    if (reservedFields.includes(name)) {
+        return `_${name}`;
+    }
+
+    return name;
+};
+
 export const indentSwiftCode = (code: string, spaces: number = 4): string => {
     const lines = code.split("\n");
     let indentLevel = 0;

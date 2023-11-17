@@ -1,7 +1,10 @@
 {
-    "name": "generator",
+    "name": "trpc-swift",
     "version": "1.0.0",
-    "main": "index.js",
+    "main": "debug/index.js",
+    "bin": {
+        "trpc-swift": "debug/cli.js"
+    },
     "license": "MIT",
     "type": "module",
     "private": true,
@@ -14,7 +17,6 @@
         "format": "prettier --write . **/*.{js,ts,json}"
     },
     "dependencies": {
-        "trpc-swift-demo": "*",
         "zod": "^3.22.4"
     },
     "devDependencies": {

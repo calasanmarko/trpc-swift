@@ -1,14 +1,14 @@
 import { Procedure, ProcedureParams } from "@trpc/server";
-import { GenericProcedure, SwiftModelGenerationData, SwiftTRPCRouter, TRPCStructure, extendZodWithSwift } from "../types.js";
+import { GenericProcedure, SwiftModelGenerationData, SwiftTRPCRouterDef, TRPCStructure, extendZodWithSwift } from "../types.js";
 import { ZodType, z } from "zod";
-import { processTypeName } from "../utility.js";
+import { processFieldName, processTypeName } from "../utility.js";
 import { zodSchemaToSwiftType } from "./models.js";
 
 extendZodWithSwift(z);
 
-export const getTRPCStructure = (router: SwiftTRPCRouter): TRPCStructure => {
+export const getTRPCStructure = (routerDef: SwiftTRPCRouterDef): TRPCStructure => {
     const structure: TRPCStructure = {};
-    Object.entries(router._def.procedures).forEach(([key, procedure]) => {
+    Object.entries(routerDef.procedures).forEach(([key, procedure]) => {
         const pathParts = key.split(".");
 
         let currentStructure: TRPCStructure = structure;
@@ -59,7 +59,7 @@ export const trpcStructureToSwiftClass = (
     });
 
     childStructureNames.forEach((child) => {
-        swiftClass += `lazy var ${child} = ${processTypeName(child)}(clientData: self)\n`;
+        swiftClass += `lazy var ${processFieldName(child)} = ${processTypeName(child)}(clientData: self)\n`;
     });
 
     if (childStructureNames.length > 0) {
@@ -115,13 +115,15 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
     const input = procedure._def.inputs.at(0);
     if (input) {
         const schemaType = zodSchemaToSwiftType(input as ZodType, globalModels, processTypeName(name + "InputType"));
-        const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
+        if (schemaType.swiftTypeSignature) {
+            const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
 
-        if (schemaType.swiftLocalModel) {
-            swiftLocalModels += schemaType.swiftLocalModel + "\n";
+            if (schemaType.swiftLocalModel) {
+                swiftLocalModels += schemaType.swiftLocalModel + "\n";
+            }
+
+            swiftMethod += swiftParam;
         }
-
-        swiftMethod += swiftParam;
     }
 
     swiftMethod += ") async throws";
@@ -130,11 +132,13 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
         const output = procedure._def.output;
         const schemaType = zodSchemaToSwiftType(output as ZodType, globalModels, processTypeName(name + "OutputType"));
 
-        if (schemaType.swiftLocalModel) {
-            swiftLocalModels += schemaType.swiftLocalModel + "\n";
-        }
+        if (schemaType.swiftTypeSignature) {
+            if (schemaType.swiftLocalModel) {
+                swiftLocalModels += schemaType.swiftLocalModel + "\n";
+            }
 
-        swiftMethod += ` -> ${schemaType.swiftTypeSignature}`;
+            swiftMethod += ` -> ${schemaType.swiftTypeSignature}`;
+        }
     }
 
     swiftMethod += " {\n";

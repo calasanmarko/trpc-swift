@@ -1,4 +1,4 @@
-import { Procedure, ProcedureParams, RootConfig, Router } from "@trpc/server";
+import { Procedure, ProcedureParams, RootConfig } from "@trpc/server";
 import { RouterDef } from "../node_modules/@trpc/server/src/core/router.js";
 import { ZodTypeAny, z } from "zod";
 
@@ -8,17 +8,15 @@ export type TRPCStructure = {
 
 export type GenericProcedure = Procedure<"query" | "mutation" | "subscription", ProcedureParams>;
 
-export type SwiftTRPCRouter = Router<
-    RouterDef<
-        RootConfig<{
-            transformer: any;
-            errorShape: any;
-            ctx: any;
-            meta: any;
-        }>,
-        any,
-        any
-    >
+export type SwiftTRPCRouterDef = RouterDef<
+    RootConfig<{
+        transformer: any;
+        errorShape: any;
+        ctx: any;
+        meta: any;
+    }>,
+    any,
+    any
 >;
 
 export type SwiftModelGenerationData = {
