@@ -28,7 +28,8 @@ export const trpcStructureToSwiftClass = (
     name: string,
     structure: TRPCStructure,
     depth: number,
-    globalModels: SwiftModelGenerationData
+    globalModels: SwiftModelGenerationData,
+    createSharedRoot: boolean
 ): string => {
     const className = processTypeName(name) + (depth ? "Route" : "");
     let swiftClass = `class ${className}: TRPCClientData {\n`;
@@ -40,7 +41,7 @@ export const trpcStructureToSwiftClass = (
         if (isProcedure(value)) {
             innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, globalModels);
         } else {
-            innerSwiftCode += trpcStructureToSwiftClass(key, value, depth + 1, globalModels);
+            innerSwiftCode += trpcStructureToSwiftClass(key, value, depth + 1, globalModels, createSharedRoot);
             childStructureNames.push(key);
         }
     });
@@ -54,6 +55,9 @@ export const trpcStructureToSwiftClass = (
     }
 
     if (depth === 0) {
+        if (createSharedRoot) {
+            swiftClass += `static let shared = ${className}(baseUrl: URL(string: "")!)\n\n`;
+        }
         swiftClass += "var baseUrl: URL\n";
         swiftClass += "var baseMiddlewares: [TRPCMiddleware] = []\n\n";
         swiftClass += "var url: URL {\n";

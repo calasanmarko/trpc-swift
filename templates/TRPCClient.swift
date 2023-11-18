@@ -21,7 +21,7 @@ struct TRPCResponse<T: Decodable>: Decodable {
     let result: Result
 }
 
-typealias TRPCMiddleware = (URLRequest) -> URLRequest
+typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
 class TRPCClient {
     struct EmptyObject: Codable {}
@@ -55,7 +55,7 @@ class TRPCClient {
         request.httpBody = bodyData
         
         for middleware in middlewares {
-            request = middleware(request)
+            request = try await middleware(request)
         }
         
         let response = try await URLSession.shared.data(for: request)

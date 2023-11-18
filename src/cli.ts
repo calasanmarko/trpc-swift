@@ -2,6 +2,7 @@
 import { writeFileSync } from "fs";
 import { trpcRouterToSwiftClient } from "./index.js";
 import path from "path";
+import { TRPCSwiftFlags } from "./types.js";
 
 const timerLabel = "Done in";
 console.time(timerLabel);
@@ -13,29 +14,40 @@ if (args.length < 2) {
     process.exit(1);
 }
 
+const flags: TRPCSwiftFlags = {
+    createTypeAliases: false,
+    createShared: false,
+};
+
 const options = {
     routerName: "",
     routerPath: "",
     outputPath: "",
-    createTypeAliases: false,
+    flags,
 };
 
-for (let i = 0; i < args.length; i += 2) {
+for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    const value = args[i + 1];
+    const value = args.at(i + 1);
 
     switch (arg) {
         case "-n":
-            options.routerName = value;
+            options.routerName = value!;
+            i++;
             break;
         case "-i":
-            options.routerPath = value;
+            options.routerPath = value!;
+            i++;
             break;
         case "-o":
-            options.outputPath = value;
+            options.outputPath = value!;
+            i++;
             break;
         case "-a":
-            options.createTypeAliases = true;
+            flags.createTypeAliases = true;
+            break;
+        case "-s":
+            flags.createShared = true;
             break;
         default:
             console.error(`Unknown argument: ${arg}`);
@@ -55,7 +67,7 @@ if (!router) {
     process.exit(1);
 }
 
-const generatedCode = trpcRouterToSwiftClient(options.routerName, router._def, options.createTypeAliases);
+const generatedCode = trpcRouterToSwiftClient(options.routerName, router._def, flags);
 writeFileSync(options.outputPath, generatedCode);
 
 console.log(`Generated TRPC Swift client for ${options.routerName} in ${options.outputPath}`);

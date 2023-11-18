@@ -2,6 +2,11 @@ import { Procedure, ProcedureParams, ProcedureRouterRecord, RootConfig } from "@
 import { RouterDef } from "../node_modules/@trpc/server/src/core/router.js";
 import { ZodTypeAny, z } from "zod";
 
+export type TRPCSwiftFlags = {
+    createTypeAliases: boolean;
+    createShared: boolean;
+};
+
 export type TRPCStructure = {
     [key: string]: TRPCStructure | GenericProcedure;
 };
@@ -41,7 +46,10 @@ declare module "zod" {
 
 export const extendZodWithSwift = (zod: typeof z) => {
     zod.ZodType.prototype.swift = function (metadata: ZodSwiftMetadata) {
-        this._def.swift = metadata;
+        this._def.swift = {
+            name: metadata.name ?? this._def.swift?.name,
+            description: metadata.description,
+        };
         return this;
     };
 };
