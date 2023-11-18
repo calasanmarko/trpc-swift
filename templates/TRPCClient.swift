@@ -24,6 +24,8 @@ struct TRPCResponse<T: Decodable>: Decodable {
 typealias TRPCMiddleware = (URLRequest) -> URLRequest
 
 class TRPCClient {
+    struct EmptyObject: Codable {}
+    
     static let shared = TRPCClient()
     
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
@@ -38,31 +40,26 @@ class TRPCClient {
             throw NSError(domain: "", code: -1, userInfo: nil)
         }
         
-        print(url)
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        for middleware in middlewares {
-            request = middleware(request)
-        }
-        
-        let response = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response.0)[0].result.data
+        let response = try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data
     }
     
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+        let response = try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: try JSONEncoder().encode(TRPCRequest(zero: input)))
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data
+    }
+
+    private func send(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Data {
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpBody = try JSONEncoder().encode(TRPCRequest(zero: input))
+        request.httpMethod = httpMethod
+        request.httpBody = bodyData
         
         for middleware in middlewares {
             request = middleware(request)
         }
         
         let response = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response.0)[0].result.data
+        return response.0
     }
 }
 
@@ -70,3 +67,4 @@ protocol TRPCClientData: AnyObject {
     var url: URL { get }
     var middlewares: [TRPCMiddleware] { get }
 }
+

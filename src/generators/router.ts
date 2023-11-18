@@ -27,46 +27,33 @@ export const getTRPCStructure = (routerDef: SwiftTRPCRouterDef): TRPCStructure =
 export const trpcStructureToSwiftClass = (
     name: string,
     structure: TRPCStructure,
-    metadata:
-        | {
-              isRoot: true;
-              depth: 0;
-              globalModels?: never;
-          }
-        | {
-              isRoot?: never;
-              depth: number;
-              globalModels: SwiftModelGenerationData;
-          }
+    depth: number,
+    globalModels: SwiftModelGenerationData
 ): string => {
-    let swiftClass = `class ${processTypeName(name)}: TRPCClientData {\n`;
-
-    const resolvedGlobalModels = metadata.globalModels ?? {
-        swiftCode: "",
-        names: new Set<string>(),
-    };
+    const className = processTypeName(name) + (depth ? "Route" : "");
+    let swiftClass = `class ${className}: TRPCClientData {\n`;
 
     let innerSwiftCode = "";
     const childStructureNames: string[] = [];
 
     Object.entries(structure).forEach(([key, value]) => {
         if (isProcedure(value)) {
-            innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, resolvedGlobalModels);
+            innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, globalModels);
         } else {
-            innerSwiftCode += trpcStructureToSwiftClass(key, value, { depth: metadata.depth + 1, globalModels: resolvedGlobalModels });
+            innerSwiftCode += trpcStructureToSwiftClass(key, value, depth + 1, globalModels);
             childStructureNames.push(key);
         }
     });
 
     childStructureNames.forEach((child) => {
-        swiftClass += `lazy var ${processFieldName(child)} = ${processTypeName(child)}(clientData: self)\n`;
+        swiftClass += `lazy var ${processFieldName(child)} = ${processTypeName(child) + "Route"}(clientData: self)\n`;
     });
 
     if (childStructureNames.length > 0) {
         swiftClass += "\n";
     }
 
-    if (metadata.isRoot) {
+    if (depth === 0) {
         swiftClass += "var baseUrl: URL\n";
         swiftClass += "var baseMiddlewares: [TRPCMiddleware] = []\n\n";
         swiftClass += "var url: URL {\n";
@@ -75,13 +62,14 @@ export const trpcStructureToSwiftClass = (
         swiftClass += "var middlewares: [TRPCMiddleware] {\n";
         swiftClass += "baseMiddlewares\n";
         swiftClass += "}\n\n";
-        swiftClass += "init(baseUrl: URL) {\n";
+        swiftClass += "init(baseUrl: URL, middlewares: [TRPCMiddleware] = []) {\n";
         swiftClass += "self.baseUrl = baseUrl\n";
+        swiftClass += "self.baseMiddlewares = middlewares\n";
         swiftClass += "}\n";
     } else {
         swiftClass += "let clientData: TRPCClientData\n\n";
         swiftClass += "var url: URL {\n";
-        if (metadata.depth === 1) {
+        if (depth === 1) {
             swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
         } else {
             swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
@@ -97,8 +85,8 @@ export const trpcStructureToSwiftClass = (
 
     swiftClass += "\n";
 
-    if (metadata.isRoot && resolvedGlobalModels.swiftCode) {
-        swiftClass += resolvedGlobalModels.swiftCode + "\n";
+    if (depth === 0 && globalModels.swiftCode) {
+        swiftClass += globalModels.swiftCode + "\n";
     }
 
     swiftClass += innerSwiftCode;
@@ -112,55 +100,67 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
     procedure: Procedure<"query" | "mutation" | "subscription", ProcedureParams>,
     globalModels: SwiftModelGenerationData
 ): string => {
-    let swiftLocalModels = "";
-    let swiftMethod = `func ${name}(`;
+    try {
+        let swiftLocalModels = "";
+        let swiftMethod = `func ${name}(`;
 
-    if (procedure._def.inputs.length > 1) {
-        throw new Error("Multiple inputs not supported.");
-    }
-
-    const input = procedure._def.inputs.at(0);
-    if (input) {
-        const schemaType = zodSchemaToSwiftType(input as ZodType, globalModels, processTypeName(name + "InputType"));
-        if (schemaType.swiftTypeSignature) {
-            const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
-
-            if (schemaType.swiftLocalModel) {
-                swiftLocalModels += schemaType.swiftLocalModel + "\n";
-            }
-
-            swiftMethod += swiftParam;
+        if (procedure._def.inputs.length > 1) {
+            throw new Error("Multiple inputs not supported.");
         }
-    }
 
-    swiftMethod += ") async throws";
+        const input = procedure._def.inputs.at(0);
+        let addedInput = false;
+        if (input) {
+            const schemaType = zodSchemaToSwiftType(input as ZodType, globalModels, processTypeName(name + "InputType"));
+            if (schemaType.swiftTypeSignature) {
+                const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
 
-    if (procedure._def.output) {
-        const output = procedure._def.output;
-        const schemaType = zodSchemaToSwiftType(output as ZodType, globalModels, processTypeName(name + "OutputType"));
+                if (schemaType.swiftLocalModel) {
+                    swiftLocalModels += schemaType.swiftLocalModel + "\n";
+                }
 
-        if (schemaType.swiftTypeSignature) {
-            if (schemaType.swiftLocalModel) {
-                swiftLocalModels += schemaType.swiftLocalModel + "\n";
+                swiftMethod += swiftParam;
+                addedInput = true;
             }
-
-            swiftMethod += ` -> ${schemaType.swiftTypeSignature}`;
         }
+
+        swiftMethod += ") async throws";
+
+        let outputType = "TRPCClient.EmptyObject";
+        if (procedure._def.output) {
+            const output = procedure._def.output;
+            const schemaType = zodSchemaToSwiftType(output as ZodType, globalModels, processTypeName(name + "OutputType"));
+
+            if (schemaType.swiftTypeSignature) {
+                if (schemaType.swiftLocalModel) {
+                    swiftLocalModels += schemaType.swiftLocalModel + "\n";
+                }
+
+                outputType = schemaType.swiftTypeSignature;
+            }
+        }
+
+        swiftMethod += ` -> ${outputType} {\n`;
+
+        if (procedure._def.query) {
+            swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: ${
+                addedInput ? "input" : "TRPCClient.EmptyObject()"
+            })\n`;
+        } else if (procedure._def.mutation) {
+            swiftMethod += `return try await TRPCClient.shared.sendMutation(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: ${
+                addedInput ? "input" : "TRPCClient.EmptyObject()"
+            })\n`;
+        } else {
+            throw new Error("Unsupported procedure type.");
+        }
+
+        swiftMethod += "}\n";
+
+        return swiftLocalModels + "\n" + swiftMethod;
+    } catch (e) {
+        console.error(`Error while processing procedure ${name}: ${(e as Error).message}`);
+        return "";
     }
-
-    swiftMethod += " {\n";
-
-    if (procedure._def.query) {
-        swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: input)\n`;
-    } else if (procedure._def.mutation) {
-        swiftMethod += `return try await TRPCClient.shared.sendMutation(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: input)\n`;
-    } else {
-        throw new Error("Unsupported procedure type.");
-    }
-
-    swiftMethod += "}\n";
-
-    return swiftLocalModels + "\n" + swiftMethod;
 };
 
 const isProcedure = (trpcStructureValue: TRPCStructure | GenericProcedure): trpcStructureValue is GenericProcedure => {

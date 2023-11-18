@@ -47,8 +47,7 @@ export const zodSchemaToSwiftType = (
         }
     }
 
-    console.error("Unsupported schema type:", (schema._def as { typeName: ZodFirstPartyTypeKind }).typeName);
-    return { swiftTypeSignature: "Any?" };
+    throw new Error("Unsupported schema type: " + (schema._def as { typeName: ZodFirstPartyTypeKind }).typeName);
 };
 
 const zodObjectToSwiftType = (
@@ -83,7 +82,7 @@ const zodEnumToSwiftType = (
     swiftLocalModel?: string;
 } => {
     return wrapZodSchemaWithModels(schema, globalModels, fallbackName, (name) => {
-        let swiftModel = `enum ${name}: String {\n`;
+        let swiftModel = `enum ${name}: String, Codable {\n`;
         schema._def.values.forEach((value) => {
             swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
         });
@@ -156,7 +155,6 @@ const wrapZodSchemaWithModels = (
                 swiftTypeSignature: zodSwiftName,
             };
         }
-        globalModels.names.add(zodSwiftName);
     }
 
     const swiftTypeSignature = processTypeName(zodSwiftName ?? fallbackName);
@@ -164,6 +162,7 @@ const wrapZodSchemaWithModels = (
     const swiftLocalModel = zodSwiftName ? undefined : swiftModel;
     if (zodSwiftName) {
         globalModels.swiftCode += swiftModel;
+        globalModels.names.add(zodSwiftName);
     }
 
     return {

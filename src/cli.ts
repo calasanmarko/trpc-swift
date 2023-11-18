@@ -17,6 +17,7 @@ const options = {
     routerName: "",
     routerPath: "",
     outputPath: "",
+    createTypeAliases: false,
 };
 
 for (let i = 0; i < args.length; i += 2) {
@@ -33,6 +34,9 @@ for (let i = 0; i < args.length; i += 2) {
         case "-o":
             options.outputPath = value;
             break;
+        case "-a":
+            options.createTypeAliases = true;
+            break;
         default:
             console.error(`Unknown argument: ${arg}`);
             process.exit(1);
@@ -40,7 +44,7 @@ for (let i = 0; i < args.length; i += 2) {
 }
 
 if (!options.routerName || !options.routerPath || !options.outputPath) {
-    console.error("All parameters (routerName, routerPath, outputPath) are required.");
+    console.error("routerName, routerPath, outputPath are required.");
     process.exit(1);
 }
 
@@ -51,7 +55,7 @@ if (!router) {
     process.exit(1);
 }
 
-const generatedCode = trpcRouterToSwiftClient(options.routerName, router._def);
+const generatedCode = trpcRouterToSwiftClient(options.routerName, router._def, options.createTypeAliases);
 writeFileSync(options.outputPath, generatedCode);
 
 console.log(`Generated TRPC Swift client for ${options.routerName} in ${options.outputPath}`);

@@ -1,6 +1,13 @@
 export const processTypeName = (name: string) => {
-    const processedName = snakeToCamelCase(name);
-    return processedName.charAt(0).toUpperCase() + processedName.slice(1);
+    const reservedTypes = ["Type"];
+
+    let processedName = snakeToCamelCase(name);
+    processedName = processedName.charAt(0).toUpperCase() + processedName.slice(1);
+    if (reservedTypes.includes(processedName)) {
+        return `_${processedName}`;
+    }
+
+    return processedName;
 };
 
 export const processFieldName = (name: string): string => {
@@ -29,10 +36,12 @@ export const indentSwiftCode = (code: string, spaces: number = 4): string => {
             indentLevel--;
         }
 
-        lines[i] =
-            Array(indentLevel * spaces)
-                .fill(" ")
-                .join("") + lines[i];
+        if (!lines[i].startsWith(" ")) {
+            lines[i] =
+                Array(indentLevel * spaces)
+                    .fill(" ")
+                    .join("") + lines[i];
+        }
 
         if (lines[i].includes("{")) {
             indentLevel++;
