@@ -1,4 +1,17 @@
-import { AnyZodObject, ZodArray, ZodEffects, ZodEnum, ZodFirstPartyTypeKind, ZodNullable, ZodOptional, ZodType, z } from "zod";
+import {
+    AnyZodObject,
+    ZodArray,
+    ZodEffects,
+    ZodEnum,
+    ZodFirstPartyTypeKind,
+    ZodLiteral,
+    ZodNullable,
+    ZodOptional,
+    ZodType,
+    ZodTypeAny,
+    ZodUnion,
+    z,
+} from "zod";
 import { SwiftModelGenerationData, extendZodWithSwift } from "../types.js";
 import { processFieldName, processTypeName } from "../utility.js";
 
@@ -10,11 +23,13 @@ export const zodSchemaToSwiftType = (
     fallbackName: string,
     alreadyOptional: boolean = false
 ): {
-    swiftTypeSignature: string | null;
+    swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
+} | null => {
     if ("typeName" in schema._def) {
         switch (schema._def.typeName as ZodFirstPartyTypeKind) {
+            case ZodFirstPartyTypeKind.ZodUnion:
+                return zodUnionToSwiftType(schema as ZodUnion<[ZodTypeAny, ...ZodTypeAny[]]>, globalModels, fallbackName);
             case ZodFirstPartyTypeKind.ZodObject:
                 return zodObjectToSwiftType(schema as AnyZodObject, globalModels, fallbackName);
             case ZodFirstPartyTypeKind.ZodEnum:
@@ -32,7 +47,8 @@ export const zodSchemaToSwiftType = (
             case ZodFirstPartyTypeKind.ZodEffects:
                 return zodEffectsToSwiftType(schema as ZodEffects<never>, globalModels, fallbackName, alreadyOptional);
             case ZodFirstPartyTypeKind.ZodVoid:
-                return { swiftTypeSignature: null };
+            case ZodFirstPartyTypeKind.ZodUndefined:
+                return null;
             case ZodFirstPartyTypeKind.ZodBigInt:
             case ZodFirstPartyTypeKind.ZodNumber:
                 return { swiftTypeSignature: "Int" };
@@ -41,12 +57,47 @@ export const zodSchemaToSwiftType = (
             case ZodFirstPartyTypeKind.ZodDate:
             case ZodFirstPartyTypeKind.ZodString:
                 return { swiftTypeSignature: "String" };
+            case ZodFirstPartyTypeKind.ZodLiteral:
+                return zodEnumToSwiftType(z.enum((schema as ZodLiteral<never>)._def.value), globalModels, fallbackName);
             default:
                 break;
         }
     }
 
     throw new Error("Unsupported schema type: " + (schema._def as { typeName: ZodFirstPartyTypeKind }).typeName);
+};
+
+const zodUnionToSwiftType = (
+    schema: ZodUnion<[ZodTypeAny, ...ZodTypeAny[]]>,
+    globalModels: SwiftModelGenerationData,
+    fallbackName: string
+): {
+    swiftTypeSignature: string;
+    swiftLocalModel?: string;
+} | null => {
+    return wrapZodSchemaWithModels(schema, globalModels, fallbackName, (name) => {
+        let swiftModel = `struct ${name}: Codable, Equatable {\n`;
+        schema._def.options.forEach((option, index) => {
+            const optionType = zodSchemaToSwiftType(option, globalModels, processTypeName("Option" + (index + 1)));
+
+            if (optionType) {
+                if (optionType.swiftLocalModel) {
+                    swiftModel += optionType.swiftLocalModel;
+                }
+
+                const optionFieldSignature = processFieldName(optionType.swiftTypeSignature);
+                let optionTypeSignature = optionType.swiftTypeSignature;
+                if (!optionTypeSignature.endsWith("?")) {
+                    optionTypeSignature += "?";
+                }
+
+                swiftModel += `var ${optionFieldSignature}: ${optionTypeSignature}\n`;
+            }
+        });
+        swiftModel += "}\n";
+
+        return swiftModel;
+    });
 };
 
 const zodObjectToSwiftType = (
@@ -61,15 +112,17 @@ const zodObjectToSwiftType = (
         let swiftModel = `struct ${name}: Codable, Equatable {\n`;
         Object.entries(schema.shape).forEach(([key, value]) => {
             const childType = zodSchemaToSwiftType(value as ZodType, globalModels, processTypeName(key));
-            if (childType.swiftLocalModel) {
-                swiftModel += childType.swiftLocalModel;
+            if (childType) {
+                if (childType.swiftLocalModel) {
+                    swiftModel += childType.swiftLocalModel;
+                }
+                swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
             }
-            swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
         });
         swiftModel += "}\n";
 
         return swiftModel;
-    });
+    })!;
 };
 
 const zodEnumToSwiftType = (
@@ -79,8 +132,12 @@ const zodEnumToSwiftType = (
 ): {
     swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
+} | null => {
     return wrapZodSchemaWithModels(schema, globalModels, fallbackName, (name) => {
+        if (!schema._def.values) {
+            return null;
+        }
+
         let swiftModel = `enum ${name}: String, Codable {\n`;
         schema._def.values.forEach((value) => {
             swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
@@ -99,8 +156,12 @@ const zodOptionalOrNullableToSwiftType = (
 ): {
     swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
+} | null => {
     const unwrappedResult = zodSchemaToSwiftType(schema._def.innerType, globalModels, fallbackName, true);
+    if (!unwrappedResult) {
+        return null;
+    }
+
     return {
         swiftTypeSignature: `${unwrappedResult.swiftTypeSignature}${alreadyOptional ? "" : "?"}`,
         swiftLocalModel: unwrappedResult.swiftLocalModel,
@@ -114,8 +175,12 @@ const zodArrayToSwiftType = (
 ): {
     swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
+} | null => {
     const unwrappedResult = zodSchemaToSwiftType(schema._def.type, globalModels, fallbackName);
+    if (!unwrappedResult) {
+        return null;
+    }
+
     return {
         swiftTypeSignature: `[${unwrappedResult.swiftTypeSignature}]`,
         swiftLocalModel: unwrappedResult.swiftLocalModel,
@@ -128,25 +193,21 @@ const zodEffectsToSwiftType = (
     fallbackName: string,
     alreadyOptional: boolean
 ): {
-    swiftTypeSignature: string | null;
+    swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
-    const unwrappedResult = zodSchemaToSwiftType(schema._def.schema, globalModels, fallbackName, alreadyOptional);
-    return {
-        swiftTypeSignature: unwrappedResult.swiftTypeSignature,
-        swiftLocalModel: unwrappedResult.swiftLocalModel,
-    };
+} | null => {
+    return zodSchemaToSwiftType(schema._def.schema, globalModels, fallbackName, alreadyOptional);
 };
 
 const wrapZodSchemaWithModels = (
-    schema: AnyZodObject | ZodEnum<[string, ...string[]]>,
+    schema: AnyZodObject | ZodEnum<[string, ...string[]]> | ZodUnion<[ZodTypeAny, ...ZodTypeAny[]]>,
     globalModels: SwiftModelGenerationData,
     fallbackName: string,
-    modelGenerator: (name: string) => string
+    modelGenerator: (name: string) => string | null
 ): {
     swiftTypeSignature: string;
     swiftLocalModel?: string;
-} => {
+} | null => {
     const zodSwiftName = schema._def.swift?.name;
     if (zodSwiftName) {
         if (globalModels.names.has(zodSwiftName)) {
@@ -158,6 +219,10 @@ const wrapZodSchemaWithModels = (
 
     const swiftTypeSignature = processTypeName(zodSwiftName ?? fallbackName);
     const swiftModel = modelGenerator(swiftTypeSignature);
+    if (!swiftModel) {
+        return null;
+    }
+
     const swiftLocalModel = zodSwiftName ? undefined : swiftModel;
     if (zodSwiftName) {
         globalModels.swiftCode += swiftModel;

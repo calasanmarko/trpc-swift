@@ -116,15 +116,18 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
         let addedInput = false;
         if (input) {
             const schemaType = zodSchemaToSwiftType(input as ZodType, globalModels, processTypeName(name + "InputType"));
-            if (schemaType.swiftTypeSignature) {
-                const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
 
-                if (schemaType.swiftLocalModel) {
-                    swiftLocalModels += schemaType.swiftLocalModel + "\n";
+            if (schemaType) {
+                if (schemaType.swiftTypeSignature) {
+                    const swiftParam = `input: ${schemaType.swiftTypeSignature}`;
+
+                    if (schemaType.swiftLocalModel) {
+                        swiftLocalModels += schemaType.swiftLocalModel + "\n";
+                    }
+
+                    swiftMethod += swiftParam;
+                    addedInput = true;
                 }
-
-                swiftMethod += swiftParam;
-                addedInput = true;
             }
         }
 
@@ -135,12 +138,14 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
             const output = procedure._def.output;
             const schemaType = zodSchemaToSwiftType(output as ZodType, globalModels, processTypeName(name + "OutputType"));
 
-            if (schemaType.swiftTypeSignature) {
-                if (schemaType.swiftLocalModel) {
-                    swiftLocalModels += schemaType.swiftLocalModel + "\n";
-                }
+            if (schemaType) {
+                if (schemaType.swiftTypeSignature) {
+                    if (schemaType.swiftLocalModel) {
+                        swiftLocalModels += schemaType.swiftLocalModel + "\n";
+                    }
 
-                outputType = schemaType.swiftTypeSignature;
+                    outputType = schemaType.swiftTypeSignature;
+                }
             }
         }
 

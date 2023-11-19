@@ -13,7 +13,8 @@ export const processTypeName = (name: string) => {
 export const processFieldName = (name: string): string => {
     const reservedFields = ["internal"];
 
-    const processedName = snakeToCamelCase(name);
+    let processedName = snakeToCamelCase(name);
+    processedName = processedName.charAt(0).toLowerCase() + processedName.slice(1);
     if (reservedFields.includes(processedName)) {
         return `_${name}`;
     }
