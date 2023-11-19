@@ -4,12 +4,5 @@
     },
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
-    "eslint.validate": ["javascript", "typescript"],
-    "files.watcherExclude": {
-        "**/.git": true,
-        "**/.DS_Store": true,
-        "**/debug/**/*": true,
-        "**/release/**/*": true,
-        "**/node_modules/**/*": true
-    }
+    "eslint.validate": ["javascript", "typescript"]
 }
