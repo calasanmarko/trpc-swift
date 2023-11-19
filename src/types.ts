@@ -8,6 +8,7 @@ export type TRPCSwiftFlags = {
     createTypeAliases: boolean;
     createShared: boolean;
     globalMode: "all" | "top" | "none";
+    quiet: boolean;
 };
 
 export type TRPCStructure = {
