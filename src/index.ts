@@ -5,7 +5,8 @@ import { SwiftModelGenerationData, SwiftTRPCRouterDef, TRPCSwiftFlags } from "./
 import path from "path";
 import { fileURLToPath } from "url";
 
-export { extendZodWithSwift } from "./types.js";
+export { TRPCSwiftMeta } from "./extensions/trpc.js";
+export { extendZodWithSwift } from "./extensions/zod.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +17,12 @@ export const trpcRouterToSwiftClient = (name: string, routerDef: SwiftTRPCRouter
         swiftCode: "",
         names: new Set<string>(),
     };
-    const swiftClass = trpcStructureToSwiftClass(name, trpcStructure, 0, globalModels, flags.createShared);
+    const swiftClass = trpcStructureToSwiftClass(name, trpcStructure, {
+        routeDepth: 0,
+        globalModels,
+        visibleModelNames: new Set<string>(),
+        flags,
+    });
 
     let swiftClient = readFileSync(path.join(__dirname, "templates/TRPCClient.swift")).toString("utf-8");
     swiftClient += swiftClass;

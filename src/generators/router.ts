@@ -1,8 +1,8 @@
-import { Procedure, ProcedureParams } from "@trpc/server";
-import { GenericProcedure, SwiftModelGenerationData, SwiftTRPCRouterDef, TRPCStructure, extendZodWithSwift } from "../types.js";
+import { GenericProcedure, SwiftTRPCRouterDef, TRPCStructure, TRPCSwiftRouteState } from "../types.js";
 import { ZodType, z } from "zod";
 import { processFieldName, processTypeName } from "../utility.js";
 import { zodSchemaToSwiftType } from "./models.js";
+import { extendZodWithSwift } from "../extensions/zod.js";
 
 extendZodWithSwift(z);
 
@@ -24,14 +24,8 @@ export const getTRPCStructure = (routerDef: SwiftTRPCRouterDef): TRPCStructure =
     return structure;
 };
 
-export const trpcStructureToSwiftClass = (
-    name: string,
-    structure: TRPCStructure,
-    depth: number,
-    globalModels: SwiftModelGenerationData,
-    createSharedRoot: boolean
-): string => {
-    const className = processTypeName(name) + (depth ? "Route" : "");
+export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure, state: TRPCSwiftRouteState): string => {
+    const className = processTypeName(name) + (state.routeDepth ? "Route" : "");
     let swiftClass = `class ${className}: TRPCClientData {\n`;
 
     let innerSwiftCode = "";
@@ -39,9 +33,13 @@ export const trpcStructureToSwiftClass = (
 
     Object.entries(structure).forEach(([key, value]) => {
         if (isProcedure(value)) {
-            innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, globalModels);
+            innerSwiftCode += trpcProcedureToSwiftMethodAndLocalModels(key, value, state);
         } else {
-            innerSwiftCode += trpcStructureToSwiftClass(key, value, depth + 1, globalModels, createSharedRoot);
+            innerSwiftCode += trpcStructureToSwiftClass(key, value, {
+                ...state,
+                routeDepth: state.routeDepth + 1,
+                visibleModelNames: new Set(state.visibleModelNames),
+            });
             childStructureNames.push(key);
         }
     });
@@ -54,8 +52,8 @@ export const trpcStructureToSwiftClass = (
         swiftClass += "\n";
     }
 
-    if (depth === 0) {
-        if (createSharedRoot) {
+    if (state.routeDepth === 0) {
+        if (state.flags.createShared) {
             swiftClass += `static let shared = ${className}()\n\n`;
         }
         swiftClass += "var baseUrl: URL?\n";
@@ -73,7 +71,7 @@ export const trpcStructureToSwiftClass = (
     } else {
         swiftClass += "let clientData: TRPCClientData\n\n";
         swiftClass += "var url: URL {\n";
-        if (depth === 1) {
+        if (state.routeDepth === 1) {
             swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
         } else {
             swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
@@ -89,8 +87,8 @@ export const trpcStructureToSwiftClass = (
 
     swiftClass += "\n";
 
-    if (depth === 0 && globalModels.swiftCode) {
-        swiftClass += globalModels.swiftCode + "\n";
+    if (state.routeDepth === 0 && state.globalModels.swiftCode) {
+        swiftClass += state.globalModels.swiftCode + "\n";
     }
 
     swiftClass += innerSwiftCode;
@@ -99,14 +97,17 @@ export const trpcStructureToSwiftClass = (
     return swiftClass;
 };
 
-const trpcProcedureToSwiftMethodAndLocalModels = (
-    name: string,
-    procedure: Procedure<"query" | "mutation" | "subscription", ProcedureParams>,
-    globalModels: SwiftModelGenerationData
-): string => {
+const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: GenericProcedure, state: TRPCSwiftRouteState): string => {
     try {
         let swiftLocalModels = "";
-        let swiftMethod = `func ${name}(`;
+        let swiftMethod = "";
+
+        const description = procedure._def.meta?.swift?.description;
+        if (description) {
+            swiftMethod += `/// ${description}\n`;
+        }
+
+        swiftMethod += `func ${name}(`;
 
         if (procedure._def.inputs.length > 1) {
             throw new Error("Multiple inputs not supported.");
@@ -115,7 +116,15 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
         const input = procedure._def.inputs.at(0);
         let addedInput = false;
         if (input) {
-            const schemaType = zodSchemaToSwiftType(input as ZodType, globalModels, processTypeName(name + "InputType"));
+            const schemaType = zodSchemaToSwiftType(
+                input as ZodType,
+                {
+                    ...state,
+                    modelDepth: 0,
+                    isAlreadyOptional: false,
+                },
+                processTypeName(name + "InputType")
+            );
 
             if (schemaType) {
                 if (schemaType.swiftTypeSignature) {
@@ -136,7 +145,15 @@ const trpcProcedureToSwiftMethodAndLocalModels = (
         let outputType = "TRPCClient.EmptyObject";
         if (procedure._def.output) {
             const output = procedure._def.output;
-            const schemaType = zodSchemaToSwiftType(output as ZodType, globalModels, processTypeName(name + "OutputType"));
+            const schemaType = zodSchemaToSwiftType(
+                output as ZodType,
+                {
+                    ...state,
+                    modelDepth: 0,
+                    isAlreadyOptional: false,
+                },
+                processTypeName(name + "OutputType")
+            );
 
             if (schemaType) {
                 if (schemaType.swiftTypeSignature) {

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { writeFileSync } from "fs";
 import { trpcRouterToSwiftClient } from "./index.js";
-import path from "path";
 import { TRPCSwiftFlags } from "./types.js";
+import path from "path";
 
 const timerLabel = "Done in";
 console.time(timerLabel);
@@ -17,6 +17,7 @@ if (args.length < 2) {
 const flags: TRPCSwiftFlags = {
     createTypeAliases: false,
     createShared: false,
+    globalMode: "top",
 };
 
 const options = {
@@ -41,6 +42,19 @@ for (let i = 0; i < args.length; i++) {
             break;
         case "-o":
             options.outputPath = value!;
+            i++;
+            break;
+        case "-g":
+            switch (value) {
+                case "all":
+                case "top":
+                case "none":
+                    flags.globalMode = value;
+                    break;
+                default:
+                    console.error(`Unknown global mode: ${value}`);
+                    process.exit(1);
+            }
             i++;
             break;
         case "-a":

@@ -1,24 +1,30 @@
-import { Procedure, ProcedureParams, ProcedureRouterRecord, RootConfig } from "@trpc/server";
+import { AnyRootConfig, Procedure, ProcedureParams, ProcedureRouterRecord, RootConfig } from "@trpc/server";
 import { RouterDef } from "../node_modules/@trpc/server/src/core/router.js";
-import { ZodTypeAny, z } from "zod";
+import { TRPCSwiftMeta } from "./extensions/trpc.js";
+
+export type TRPCSwiftGlobalMode = "all" | "top" | "none";
 
 export type TRPCSwiftFlags = {
     createTypeAliases: boolean;
     createShared: boolean;
+    globalMode: "all" | "top" | "none";
 };
 
 export type TRPCStructure = {
     [key: string]: TRPCStructure | GenericProcedure;
 };
 
-export type GenericProcedure = Procedure<"query" | "mutation" | "subscription", ProcedureParams>;
+export type GenericProcedure = Procedure<
+    "query" | "mutation" | "subscription",
+    ProcedureParams<AnyRootConfig, unknown, unknown, unknown, unknown, unknown, TRPCSwiftMeta>
+>;
 
 export type SwiftTRPCRouterDef = RouterDef<
     RootConfig<{
         transformer: unknown;
         errorShape: unknown;
         ctx: never;
-        meta: never;
+        meta: TRPCSwiftMeta;
     }>,
     ProcedureRouterRecord,
     never
@@ -29,27 +35,14 @@ export type SwiftModelGenerationData = {
     names: Set<string>;
 };
 
-type ZodSwiftMetadata = {
-    name?: string;
-    description?: string;
+export type TRPCSwiftRouteState = {
+    routeDepth: number;
+    globalModels: SwiftModelGenerationData;
+    visibleModelNames: Set<string>;
+    flags: TRPCSwiftFlags;
 };
 
-declare module "zod" {
-    interface ZodTypeDef {
-        swift?: ZodSwiftMetadata;
-    }
-
-    interface ZodType {
-        swift<T extends ZodTypeAny>(this: T, metadata: ZodSwiftMetadata): T;
-    }
-}
-
-export const extendZodWithSwift = (zod: typeof z) => {
-    zod.ZodType.prototype.swift = function (metadata: ZodSwiftMetadata) {
-        this._def.swift = {
-            name: metadata.name ?? this._def.swift?.name,
-            description: metadata.description,
-        };
-        return this;
-    };
+export type TRPCSwiftModelState = TRPCSwiftRouteState & {
+    modelDepth: number;
+    isAlreadyOptional: boolean;
 };
