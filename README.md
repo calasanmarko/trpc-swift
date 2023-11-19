@@ -113,7 +113,7 @@ class AppRouter: TRPCClientData {
 }
 ```
 
-The generated Swift class is self-containted, handles networking and routing. All you need to do is add it to your Swift project.
+The generated Swift class is self-contained, handles networking and routing. All you need to do is add it to your Swift project.
 
 # License
 
