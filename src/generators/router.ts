@@ -184,7 +184,9 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
 
         return swiftLocalModels + "\n" + swiftMethod;
     } catch (e) {
-        console.error(`Error while processing procedure ${name}: ${(e as Error).message}`);
+        if (!state.flags.quiet) {
+            console.error(`Error while processing procedure ${name}: ${(e as Error).message}`);
+        }
         return "";
     }
 };
