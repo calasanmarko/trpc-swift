@@ -7,7 +7,11 @@
 import Foundation
 
 struct TRPCRequest<T: Encodable>: Encodable {
-    let zero: T
+    struct DataContainer: Encodable {
+        let json: T?
+    }
+    
+    let zero: DataContainer
     
     enum CodingKeys: String, CodingKey {
         case zero = "0"
@@ -16,8 +20,13 @@ struct TRPCRequest<T: Encodable>: Encodable {
 
 struct TRPCResponse<T: Decodable>: Decodable {
     struct Result: Decodable {
-        let data: T
+        struct DataContainer: Decodable {
+            let json: T
+        }
+        
+        let data: DataContainer
     }
+    
     let result: Result
 }
 
@@ -30,7 +39,8 @@ class TRPCClient {
     
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let data = try! JSONEncoder().encode(TRPCRequest(zero: input))
+        let data = try JSONEncoder().encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
             URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
@@ -41,22 +51,39 @@ class TRPCClient {
         }
         
         let response = try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data
+        
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
     }
     
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
-        let response = try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: try JSONEncoder().encode(TRPCRequest(zero: input)))
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let data = try JSONEncoder().encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        
+        components?.queryItems = [
+            URLQueryItem(name: "batch", value: "1")
+        ]
+        
+        guard let url = components?.url else {
+            throw NSError(domain: "", code: -1, userInfo: nil)
+        }
+        
+        let response = try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
+        
+        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
     }
-
+    
     private func send(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.httpBody = bodyData
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
         for middleware in middlewares {
             request = try await middleware(request)
         }
+        
+        request.httpMethod = httpMethod
+        request.httpBody = bodyData
         
         let response = try await URLSession.shared.data(for: request)
         return response.0
@@ -67,4 +94,3 @@ protocol TRPCClientData: AnyObject {
     var url: URL { get }
     var middlewares: [TRPCMiddleware] { get }
 }
-
