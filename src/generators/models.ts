@@ -50,6 +50,7 @@ export const zodSchemaToSwiftType = (
             case ZodFirstPartyTypeKind.ZodBoolean:
                 return { swiftTypeSignature: "Bool" };
             case ZodFirstPartyTypeKind.ZodDate:
+                return { swiftTypeSignature: "Date" };
             case ZodFirstPartyTypeKind.ZodString:
                 return { swiftTypeSignature: "String" };
             case ZodFirstPartyTypeKind.ZodLiteral:

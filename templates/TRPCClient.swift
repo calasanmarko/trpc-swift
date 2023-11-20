@@ -37,9 +37,18 @@ class TRPCClient {
     
     static let shared = TRPCClient()
     
+    lazy var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        return formatter
+    }()
+    
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let data = try JSONEncoder().encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
         
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
@@ -52,12 +61,12 @@ class TRPCClient {
         
         let response = try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
         
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
+        return try JSONDecoder(dateDecodingStrategy: .formatted(dateFormatter)).decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
     }
     
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let data = try JSONEncoder().encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
         
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1")
@@ -69,7 +78,7 @@ class TRPCClient {
         
         let response = try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
         
-        return try JSONDecoder().decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
+        return try JSONDecoder(dateDecodingStrategy: .formatted(dateFormatter)).decode([TRPCResponse<Response>].self, from: response)[0].result.data.json
     }
     
     private func send(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Data {
