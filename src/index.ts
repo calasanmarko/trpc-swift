@@ -8,10 +8,10 @@ import { fileURLToPath } from "url";
 export { TRPCSwiftMeta } from "./extensions/trpc.js";
 export { extendZodWithSwift } from "./extensions/zod.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 export const trpcRouterToSwiftClient = (name: string, routerDef: SwiftTRPCRouterDef, flags: TRPCSwiftFlags): string => {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
     const trpcStructure = getTRPCStructure(routerDef);
     const globalModels: SwiftModelGenerationData = {
         swiftCode: "",
