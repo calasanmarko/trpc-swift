@@ -62,7 +62,14 @@ const zodUnionToSwiftType = (
     fallbackName: string
 ): SwiftTypeGenerationData | null => {
     return wrapZodSchemaWithModels(schema, state, fallbackName, (name) => {
-        let swiftModel = `struct ${name}: Codable, Equatable {\n`;
+        let swiftModel = "";
+
+        const description = schema._def.swift?.description;
+        if (description) {
+            swiftModel += `/// ${description}\n`;
+        }
+
+        swiftModel += `struct ${name}: Codable, Equatable {\n`;
         schema._def.options.forEach((option, index) => {
             const optionType = zodSchemaToSwiftType(option, state, processTypeName("Option" + (index + 1)));
 
@@ -88,7 +95,14 @@ const zodUnionToSwiftType = (
 
 const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, fallbackName: string): SwiftTypeGenerationData => {
     return wrapZodSchemaWithModels(schema, state, fallbackName, (name) => {
-        let swiftModel = `struct ${name}: Codable, Equatable {\n`;
+        let swiftModel = "";
+
+        const description = schema._def.swift?.description;
+        if (description) {
+            swiftModel += `/// ${description}\n`;
+        }
+
+        swiftModel = `struct ${name}: Codable, Equatable {\n`;
         Object.entries(schema.shape).forEach(([key, value]) => {
             const childType = zodSchemaToSwiftType(
                 value as ZodType,
@@ -102,6 +116,11 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
             if (childType) {
                 if (childType.swiftLocalModel) {
                     swiftModel += childType.swiftLocalModel;
+                }
+
+                const childDescription = (value as ZodType)._def.swift?.description;
+                if (childDescription) {
+                    swiftModel += `/// ${childDescription}\n`;
                 }
                 swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
             }
@@ -130,7 +149,13 @@ const zodEnumToSwiftType = (
                 return null;
             }
 
-            let swiftModel = `enum ${name}: String, Codable {\n`;
+            let swiftModel = "";
+            const description = schema._def.swift?.description;
+            if (description) {
+                swiftModel += `/// ${description}\n`;
+            }
+
+            swiftModel = `enum ${name}: String, Codable {\n`;
             schema._def.values.forEach((value) => {
                 swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
             });
