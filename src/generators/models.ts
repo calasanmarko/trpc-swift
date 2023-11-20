@@ -71,7 +71,14 @@ const zodUnionToSwiftType = (
 
         swiftModel += `struct ${name}: Codable, Equatable {\n`;
         schema._def.options.forEach((option, index) => {
-            const optionType = zodSchemaToSwiftType(option, state, processTypeName("Option" + (index + 1)));
+            const optionType = zodSchemaToSwiftType(
+                option,
+                {
+                    ...state,
+                    isAlreadyOptional: false,
+                },
+                processTypeName("Option" + (index + 1))
+            );
 
             if (optionType) {
                 if (optionType.swiftLocalModel) {
@@ -110,6 +117,7 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
                     ...state,
                     modelDepth: state.modelDepth + 1,
                     visibleModelNames: new Set(state.visibleModelNames),
+                    isAlreadyOptional: false,
                 },
                 processTypeName(key)
             );
@@ -142,6 +150,7 @@ const zodEnumToSwiftType = (
             ...state,
             modelDepth: state.modelDepth + 1,
             visibleModelNames: new Set(state.visibleModelNames),
+            isAlreadyOptional: false,
         },
         fallbackName,
         (name) => {
@@ -191,7 +200,14 @@ const zodOptionalOrNullableToSwiftType = (
 };
 
 const zodArrayToSwiftType = (schema: ZodArray<never>, state: TRPCSwiftModelState, fallbackName: string): SwiftTypeGenerationData | null => {
-    const unwrappedResult = zodSchemaToSwiftType(schema._def.type, state, fallbackName);
+    const unwrappedResult = zodSchemaToSwiftType(
+        schema._def.type,
+        {
+            ...state,
+            isAlreadyOptional: false,
+        },
+        fallbackName
+    );
     if (!unwrappedResult) {
         return null;
     }
