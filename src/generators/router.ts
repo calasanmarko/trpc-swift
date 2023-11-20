@@ -56,15 +56,15 @@ export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure
         if (state.flags.createShared) {
             swiftClass += `static let shared = ${className}()\n\n`;
         }
-        swiftClass += "var baseUrl: URL?\n";
+        swiftClass += `var baseUrl: URL${state.flags.createShared ? "!" : ""}\n`;
         swiftClass += "var baseMiddlewares: [TRPCMiddleware] = []\n\n";
         swiftClass += "var url: URL {\n";
-        swiftClass += "baseUrl!\n";
+        swiftClass += "baseUrl\n";
         swiftClass += "}\n\n";
         swiftClass += "var middlewares: [TRPCMiddleware] {\n";
         swiftClass += "baseMiddlewares\n";
         swiftClass += "}\n\n";
-        swiftClass += "init(baseUrl: URL? = nil, middlewares: [TRPCMiddleware] = []) {\n";
+        swiftClass += `init(baseUrl: URL${state.flags.createShared ? "? = nil" : ""}, middlewares: [TRPCMiddleware] = []) {\n`;
         swiftClass += "self.baseUrl = baseUrl\n";
         swiftClass += "self.baseMiddlewares = middlewares\n";
         swiftClass += "}\n";
