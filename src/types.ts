@@ -36,6 +36,11 @@ export type SwiftModelGenerationData = {
     names: Set<string>;
 };
 
+export type SwiftTypeGenerationData = {
+    swiftTypeSignature: string;
+    swiftLocalModel?: string;
+};
+
 export type TRPCSwiftRouteState = {
     routeDepth: number;
     globalModels: SwiftModelGenerationData;
