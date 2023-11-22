@@ -4,5 +4,6 @@
     },
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
-    "eslint.validate": ["javascript", "typescript"]
+    "eslint.validate": ["javascript", "typescript"],
+    "swiftlint.configSearchPaths": ["${workspaceFolder}"]
 }

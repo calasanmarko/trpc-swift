@@ -12,7 +12,7 @@ enum DecodableValue: Decodable {
     case double(Double)
     case bool(Bool)
     case dictionary([String: DecodableValue])
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let str = try? container.decode(String.self) {
@@ -46,7 +46,7 @@ enum TRPCErrorCode: Int, Codable {
     case unprocessableContent = -32022
     case tooManyRequests = -32029
     case clientClosedRequest = -32099
-    
+
     // Application Defined
     case unknown = -1
     case missingOutputPayload = -2
@@ -68,9 +68,9 @@ struct TRPCRequest<T: Encodable>: Encodable {
     struct DataContainer: Encodable {
         let json: T?
     }
-    
+
     let zero: DataContainer
-    
+
     enum CodingKeys: String, CodingKey {
         case zero = "0"
     }
@@ -81,14 +81,14 @@ struct TRPCResponse<T: Decodable>: Decodable {
         struct DataContainer: Decodable {
             let json: T
         }
-        
+
         let data: DataContainer
     }
-    
+
     struct ErrorContainer: Decodable {
         let json: TRPCError
     }
-    
+
     let result: Result?
     let error: ErrorContainer?
 }
@@ -97,77 +97,81 @@ typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
 class TRPCClient {
     struct EmptyObject: Codable {}
-    
+
     static let shared = TRPCClient()
-    
+
     lazy var dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
+
         return formatter
     }()
-    
+
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
-        
+
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
             URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
         ]
-        
+
         guard let url = components?.url else {
             throw NSError(domain: "", code: -1, userInfo: nil)
         }
-        
+
         return try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
     }
-    
+
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
-        
+
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1")
         ]
-        
+
         guard let url = components?.url else {
             throw NSError(domain: "", code: -1, userInfo: nil)
         }
-        
+
         return try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
     }
-    
+
     private func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Response {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.httpBody = bodyData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         for middleware in middlewares {
             request = try await middleware(request)
         }
-        
+
         request.httpMethod = httpMethod
         request.httpBody = bodyData
-        
+
         let response = try await URLSession.shared.data(for: request)
         let decoded = try JSONDecoder(dateDecodingStrategy: .formatted(dateFormatter)).decode([TRPCResponse<Response>].self, from: response.0)[0]
-        
+
         if let error = decoded.error {
             throw error.json
         }
-        
+
         if let result = decoded.result {
             return result.data.json
         }
-        
+
         if Response.self == EmptyObject.self {
-            return EmptyObject() as! Response
+            guard let emptyResult = EmptyObject() as? Response else {
+                throw TRPCError(code: .missingOutputPayload, message: "Cannot cast empty object to \(Response.self).", data: nil)
+            }
+
+            return emptyResult
         }
-        
+
         throw TRPCError(code: .missingOutputPayload, message: "Missing output payload.", data: nil)
     }
 }

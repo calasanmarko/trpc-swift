@@ -93,7 +93,7 @@ class AppRouter: TRPCClientData {
         }
         var name: Name
         var email: String?
-        var dateCreated: String
+        var dateCreated: Date
     }
 
     class UserRoute: TRPCClientData {
