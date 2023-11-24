@@ -12,7 +12,7 @@ enum DecodableValue: Decodable {
     case double(Double)
     case bool(Bool)
     case dictionary([String: DecodableValue])
-
+    
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let str = try? container.decode(String.self) {
@@ -46,17 +46,19 @@ enum TRPCErrorCode: Int, Codable {
     case unprocessableContent = -32022
     case tooManyRequests = -32029
     case clientClosedRequest = -32099
-
+    
     // Application Defined
     case unknown = -1
     case missingOutputPayload = -2
+    case errorParsingUrl = -3
+    case errorParsingUrlComponents = -4
 }
 
 struct TRPCError: Error, Decodable {
     let code: TRPCErrorCode
     let message: String?
     let data: DecodableValue?
-
+    
     init(code: TRPCErrorCode, message: String? = nil, data: DecodableValue? = nil) {
         self.code = code
         self.message = message
@@ -68,9 +70,9 @@ struct TRPCRequest<T: Encodable>: Encodable {
     struct DataContainer: Encodable {
         let json: T?
     }
-
+    
     let zero: DataContainer
-
+    
     enum CodingKeys: String, CodingKey {
         case zero = "0"
     }
@@ -81,14 +83,14 @@ struct TRPCResponse<T: Decodable>: Decodable {
         struct DataContainer: Decodable {
             let json: T
         }
-
+        
         let data: DataContainer
     }
-
+    
     struct ErrorContainer: Decodable {
         let json: TRPCError
     }
-
+    
     let result: Result?
     let error: ErrorContainer?
 }
@@ -97,31 +99,40 @@ typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
 class TRPCClient {
     struct EmptyObject: Codable {}
-
+    
     static let shared = TRPCClient()
-
+    
     lazy var dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-
+        
         return formatter
     }()
-
+    
     func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw TRPCError(code: .errorParsingUrl, message: "Could not create URLComponents from the given url: \(url)")
+        }
+        
         let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
-
-        components?.queryItems = [
+        
+        components.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
             URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
         ]
-
-        guard let url = components?.url else {
-            throw NSError(domain: "", code: -1, userInfo: nil)
+        
+        let characterSet = CharacterSet(charactersIn: "/+").inverted
+        guard let oldPercentEncodedQuery = components.percentEncodedQuery else {
+            throw TRPCError(code: .errorParsingUrlComponents, message: "Could not retreive percent encoded URL query.")
         }
-
+        components.percentEncodedQuery = oldPercentEncodedQuery.addingPercentEncoding(withAllowedCharacters: characterSet)
+        
+        guard let url = components.url else {
+            throw TRPCError(code: .errorParsingUrlComponents, message: "Could not generate final URL after including parameters.")
+        }
+        
         return try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
     }
 
