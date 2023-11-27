@@ -142,7 +142,8 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
 
         swiftMethod += ") async throws";
 
-        let outputType = "TRPCClient.EmptyObject";
+        const emptyOutputType = "TRPCClient.EmptyObject";
+        let outputType = emptyOutputType;
         if (procedure._def.output) {
             const output = procedure._def.output;
             const schemaType = zodSchemaToSwiftType(
@@ -166,10 +167,10 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
             }
         }
 
-        if (procedure._def.output) {
-            swiftMethod += ` -> ${outputType} {\n`;
-        } else {
+        if (outputType === emptyOutputType) {
             swiftMethod += " {\n";
+        } else {
+            swiftMethod += ` -> ${outputType} {\n`;
         }
 
         if (procedure._def.query) {
