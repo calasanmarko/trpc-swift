@@ -166,7 +166,11 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
             }
         }
 
-        swiftMethod += ` -> ${outputType} {\n`;
+        if (procedure._def.output) {
+            swiftMethod += ` -> ${outputType} {\n`;
+        } else {
+            swiftMethod += " {\n";
+        }
 
         if (procedure._def.query) {
             swiftMethod += `return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("${name}"), middlewares: middlewares, input: ${
