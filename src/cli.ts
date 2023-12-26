@@ -3,6 +3,7 @@ import { writeFileSync } from "fs";
 import { trpcRouterToSwiftClient } from "./index.js";
 import { TRPCSwiftFlags } from "./types.js";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const timerLabel = "Done in";
 console.time(timerLabel);
@@ -112,7 +113,7 @@ if (!options.routerName || !options.routerPath || !options.outputPath) {
     process.exit(1);
 }
 
-const module = await import(path.join(process.cwd(), options.routerPath));
+const module = await import(fileURLToPath(path.join(process.cwd(), options.routerPath)));
 const router = module[options.routerName];
 if (!router) {
     console.error(`Could not find router ${options.routerName} in ${options.routerPath}`);
