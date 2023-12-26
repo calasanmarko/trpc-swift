@@ -45,7 +45,11 @@ export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure
     });
 
     childStructureNames.forEach((child) => {
-        swiftClass += `lazy var ${processFieldName(child)} = ${processTypeName(child) + "Route"}(clientData: self)\n`;
+        const fieldName = processFieldName(child);
+        const typeName = processTypeName(child) + "Route";
+
+        swiftClass += `lazy var _${fieldName} = ${typeName}(clientData: self)\n`;
+        swiftClass += `var ${fieldName}: ${typeName} {\n_${fieldName}\n}\n`;
     });
 
     if (childStructureNames.length > 0) {
