@@ -11,7 +11,7 @@ export const processTypeName = (name: string) => {
 };
 
 export const processFieldName = (name: string): string => {
-    const reservedFields = ["internal"];
+    const reservedFields = ["internal", "public", "private"];
 
     let processedName = snakeToCamelCase(name);
     processedName = processedName.charAt(0).toLowerCase() + processedName.slice(1);
