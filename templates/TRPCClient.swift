@@ -116,7 +116,9 @@ class TRPCClient {
             throw TRPCError(code: .errorParsingUrl, message: "Could not create URLComponents from the given url: \(url)")
         }
         
-        let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .formatted(dateFormatter)
+        let data = try encoder.encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
         
         components.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
@@ -138,7 +140,10 @@ class TRPCClient {
 
     func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let data = try JSONEncoder(dateEncodingStrategy: .formatted(dateFormatter)).encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .formatted(dateFormatter)
+        let data = try encoder.encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
 
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1")
@@ -165,7 +170,10 @@ class TRPCClient {
         request.httpBody = bodyData
 
         let response = try await URLSession.shared.data(for: request)
-        let decoded = try JSONDecoder(dateDecodingStrategy: .formatted(dateFormatter)).decode([TRPCResponse<Response>].self, from: response.0)[0]
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .formatted(dateFormatter)
+        let decoded = try decoder.decode([TRPCResponse<Response>].self, from: response.0)[0]
 
         if let error = decoded.error {
             throw error.json
