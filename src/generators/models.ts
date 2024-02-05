@@ -69,7 +69,7 @@ const zodUnionToSwiftType = (
             swiftModel += `/// ${description}\n`;
         }
 
-        swiftModel += `struct ${name}: Codable, Equatable {\n`;
+        swiftModel += `struct ${name}: Codable, ${state.flags.conformance} {\n`;
         schema._def.options.forEach((option, index) => {
             const optionType = zodSchemaToSwiftType(
                 option,
@@ -109,7 +109,7 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
             swiftModel += `/// ${description}\n`;
         }
 
-        swiftModel = `struct ${name}: Codable, Equatable {\n`;
+        swiftModel = `struct ${name}: Codable, ${state.flags.conformance} {\n`;
         Object.entries(schema.shape).forEach(([key, value]) => {
             const childType = zodSchemaToSwiftType(
                 value as ZodType,
@@ -164,7 +164,7 @@ const zodEnumToSwiftType = (
                 swiftModel += `/// ${description}\n`;
             }
 
-            swiftModel = `enum ${name}: String, Codable {\n`;
+            swiftModel = `enum ${name}: String, Codable, ${state.flags.conformance} {\n`;
             schema._def.values.forEach((value) => {
                 swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
             });

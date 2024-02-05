@@ -7,6 +7,7 @@ export type TRPCSwiftGlobalMode = "all" | "top" | "none";
 export type TRPCSwiftFlags = {
     createTypeAliases: boolean;
     createShared: boolean;
+    conformance: string;
     globalMode: "all" | "top" | "none";
     quiet: boolean;
 };

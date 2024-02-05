@@ -16,6 +16,7 @@ const showHelp = () => {
     console.log("  -r, --router-name  Set the router name that should be found in the input file");
     console.log("  -i, --input        Set the path where the tRPC input tRPC router is located");
     console.log("  -o, --output       Set the output path for the generated Swift client");
+    console.log("  -c  --conformance  Set the conformance for the generated Swift models (default: Equatable)");
     console.log("  -g, --global-mode  Control which models are placed by default in the global scope.");
     console.log("      all            All named models will be placed in the global scope by default.");
     console.log("      top            Only named models directly referenced by routes will be placed in the global scope by default.");
@@ -35,6 +36,7 @@ const flags: TRPCSwiftFlags = {
     createTypeAliases: false,
     createShared: false,
     globalMode: "top",
+    conformance: "Equatable",
     quiet: false,
 };
 
@@ -88,6 +90,11 @@ for (let i = 0; i < args.length; i++) {
                     showHelp();
                     process.exit(1);
             }
+            i++;
+            break;
+        case "--conformance":
+        case "-c":
+            flags.conformance = value!.replace(/['"]/g, "").replace(/,(?!\s)/g, ", ");
             i++;
             break;
         case "--alias":
