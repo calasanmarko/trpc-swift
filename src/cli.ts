@@ -11,7 +11,7 @@ console.time(timerLabel);
 const args = process.argv.slice(2);
 
 const showHelp = () => {
-    console.log("Usage: trpc-swift -n [routerName] -i [routerPath] -o [outputPath]");
+    console.log("Usage: trpc-swift -r [routerName] -i [routerPath] -o [outputPath]");
     console.log("Options:");
     console.log("  -r, --router-name  Set the router name that should be found in the input file");
     console.log("  -i, --input        Set the path where the tRPC input tRPC router is located");
