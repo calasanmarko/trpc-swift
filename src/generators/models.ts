@@ -7,6 +7,7 @@ import {
     ZodLiteral,
     ZodNullable,
     ZodOptional,
+    ZodRecord,
     ZodType,
     ZodTypeAny,
     ZodUnion,
@@ -220,9 +221,13 @@ const zodArrayToSwiftType = (schema: ZodArray<never>, state: TRPCSwiftModelState
     };
 };
 
-const zodRecordToSwiftType = (schema: ZodRecord<never>, state: TRPCSwiftModelState, fallbackName: string): SwiftTypeGenerationData | null => {
+const zodRecordToSwiftType = (
+    schema: ZodRecord<never>,
+    state: TRPCSwiftModelState,
+    fallbackName: string
+): SwiftTypeGenerationData | null => {
     const unwrappedResult = zodSchemaToSwiftType(
-        schema._def.type,
+        schema._def.valueType,
         {
             ...state,
             isAlreadyOptional: false,
