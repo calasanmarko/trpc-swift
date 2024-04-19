@@ -26,7 +26,7 @@ export const getTRPCStructure = (routerDef: SwiftTRPCRouterDef): TRPCStructure =
 
 export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure, state: TRPCSwiftRouteState): string => {
     const className = processTypeName(name) + (state.routeDepth ? "Route" : "");
-    let swiftClass = `class ${className}: TRPCClientData {\n`;
+    let swiftClass = `${state.flags.publicAccess ? "public " : ""}class ${className}: TRPCClientData {\n`;
 
     let innerSwiftCode = "";
     const childStructureNames: string[] = [];
@@ -48,8 +48,8 @@ export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure
         const fieldName = processFieldName(child);
         const typeName = processTypeName(child) + "Route";
 
-        swiftClass += `lazy var _${fieldName} = ${typeName}(clientData: self)\n`;
-        swiftClass += `var ${fieldName}: ${typeName} {\n_${fieldName}\n}\n`;
+        swiftClass += `private lazy var _${fieldName} = ${typeName}(clientData: self)\n`;
+        swiftClass += `${state.flags.publicAccess ? "public " : ""}var ${fieldName}: ${typeName} {\n_${fieldName}\n}\n`;
     });
 
     if (childStructureNames.length > 0) {
@@ -58,33 +58,35 @@ export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure
 
     if (state.routeDepth === 0) {
         if (state.flags.createShared) {
-            swiftClass += `static let shared = ${className}()\n\n`;
+            swiftClass += `${state.flags.publicAccess ? "public " : ""}static let shared = ${className}()\n\n`;
         }
-        swiftClass += `var baseUrl: URL${state.flags.createShared ? "!" : ""}\n`;
-        swiftClass += "var baseMiddlewares: [TRPCMiddleware] = []\n\n";
-        swiftClass += "var url: URL {\n";
+        swiftClass += `private var baseUrl: URL${state.flags.createShared ? "!" : ""}\n`;
+        swiftClass += "private var baseMiddlewares: [TRPCMiddleware] = []\n\n";
+        swiftClass += "fileprivate var url: URL {\n";
         swiftClass += "baseUrl\n";
         swiftClass += "}\n\n";
-        swiftClass += "var middlewares: [TRPCMiddleware] {\n";
+        swiftClass += "fileprivate var middlewares: [TRPCMiddleware] {\n";
         swiftClass += "baseMiddlewares\n";
         swiftClass += "}\n\n";
-        swiftClass += `init(baseUrl: URL${state.flags.createShared ? "? = nil" : ""}, middlewares: [TRPCMiddleware] = []) {\n`;
+        swiftClass += `${state.flags.publicAccess ? "public " : ""}init(baseUrl: URL${
+            state.flags.createShared ? "? = nil" : ""
+        }, middlewares: [TRPCMiddleware] = []) {\n`;
         swiftClass += "self.baseUrl = baseUrl\n";
         swiftClass += "self.baseMiddlewares = middlewares\n";
         swiftClass += "}\n";
     } else {
-        swiftClass += "let clientData: TRPCClientData\n\n";
-        swiftClass += "var url: URL {\n";
+        swiftClass += "fileprivate let clientData: TRPCClientData\n\n";
+        swiftClass += "fileprivate var url: URL {\n";
         if (state.routeDepth === 1) {
             swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
         } else {
             swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
         }
         swiftClass += "}\n\n";
-        swiftClass += "var middlewares: [TRPCMiddleware] {\n";
+        swiftClass += "fileprivate var middlewares: [TRPCMiddleware] {\n";
         swiftClass += "clientData.middlewares\n";
         swiftClass += "}\n\n";
-        swiftClass += "init(clientData: TRPCClientData) {\n";
+        swiftClass += "fileprivate init(clientData: TRPCClientData) {\n";
         swiftClass += "self.clientData = clientData\n";
         swiftClass += "}\n";
     }
@@ -109,6 +111,10 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
         const description = procedure._def.meta?.swift?.description;
         if (description) {
             swiftMethod += `/// ${description}\n`;
+        }
+
+        if (state.flags.publicAccess) {
+            swiftMethod += "public ";
         }
 
         swiftMethod += `func ${name}(`;

@@ -29,6 +29,9 @@ export const trpcRouterToSwiftClient = (name: string, routerDef: SwiftTRPCRouter
 
     if (flags.createTypeAliases) {
         globalModels.names.forEach((modelName) => {
+            if (flags.publicAccess) {
+                swiftClient += "public ";
+            }
             swiftClient += `typealias ${modelName} = ${processTypeName(name)}.${modelName}\n`;
         });
     }

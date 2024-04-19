@@ -6,14 +6,14 @@
 
 import Foundation
 
-enum DecodableValue: Decodable {
+public enum DecodableValue: Decodable {
     case string(String)
     case int(Int)
     case double(Double)
     case bool(Bool)
     case dictionary([String: DecodableValue])
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let str = try? container.decode(String.self) {
             self = .string(str)
@@ -30,7 +30,7 @@ enum DecodableValue: Decodable {
     }
 }
 
-enum TRPCErrorCode: Int, Codable {
+public enum TRPCErrorCode: Int, Codable {
     // tRPC Defined
     case parseError = -32700
     case badRequest = -32600
@@ -38,7 +38,7 @@ enum TRPCErrorCode: Int, Codable {
     case unauthorized = -32001
     case forbidden = -32003
     case notFound = -32004
-    case methodNotSupported = -32005
+    case methodNotSupported = -32005    
     case timeout = -32008
     case conflict = -32009
     case preconditionFailed = -32012
@@ -54,10 +54,10 @@ enum TRPCErrorCode: Int, Codable {
     case errorParsingUrlComponents = -4
 }
 
-struct TRPCError: Error, Decodable {
-    let code: TRPCErrorCode
-    let message: String?
-    let data: DecodableValue?
+public struct TRPCError: Error, Decodable {
+    public let code: TRPCErrorCode
+    public let message: String?
+    public let data: DecodableValue?
     
     init(code: TRPCErrorCode, message: String? = nil, data: DecodableValue? = nil) {
         self.code = code
@@ -95,7 +95,7 @@ struct TRPCResponse<T: Decodable>: Decodable {
     let error: ErrorContainer?
 }
 
-typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
+public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
 class TRPCClient {
     struct EmptyObject: Codable {}
@@ -195,7 +195,8 @@ class TRPCClient {
     }
 }
 
-protocol TRPCClientData: AnyObject {
+private protocol TRPCClientData: AnyObject {
     var url: URL { get }
     var middlewares: [TRPCMiddleware] { get }
 }
+

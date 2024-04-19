@@ -21,6 +21,7 @@ const showHelp = () => {
     console.log("      all            All named models will be placed in the global scope by default.");
     console.log("      top            Only named models directly referenced by routes will be placed in the global scope by default.");
     console.log("      none           No models will be placed in the global scope by default.");
+    console.log("  -p, --public       Assign the public access modifier for all generated Swift models and routes.");
     console.log("  -a, --alias        Create public type aliases for all models in the global scope.");
     console.log("  -s, --shared       Create a shared singleton instance of the generated Swift client.");
     console.log("  -h, --help         Display this help message");
@@ -28,13 +29,14 @@ const showHelp = () => {
 };
 
 if (args.length < 2) {
-    console.error("Usage: trpc-swift -n [routerName] -i [routerPath] -o [outputPath]");
+    showHelp();
     process.exit(1);
 }
 
 const flags: TRPCSwiftFlags = {
     createTypeAliases: false,
     createShared: false,
+    publicAccess: false,
     globalMode: "top",
     conformance: "Equatable",
     quiet: false,
@@ -104,6 +106,10 @@ for (let i = 0; i < args.length; i++) {
         case "--shared":
         case "-s":
             flags.createShared = true;
+            break;
+        case "--public":
+        case "-p":
+            flags.publicAccess = true;
             break;
         default:
             console.error(`Unknown argument: ${arg}`);

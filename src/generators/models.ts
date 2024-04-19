@@ -6,6 +6,7 @@ import {
     ZodFirstPartyTypeKind,
     ZodLiteral,
     ZodNullable,
+    ZodNumber,
     ZodOptional,
     ZodRecord,
     ZodType,
@@ -41,8 +42,9 @@ export const zodSchemaToSwiftType = (schema: ZodType, state: TRPCSwiftModelState
             case ZodFirstPartyTypeKind.ZodUndefined:
                 return null;
             case ZodFirstPartyTypeKind.ZodBigInt:
-            case ZodFirstPartyTypeKind.ZodNumber:
                 return { swiftTypeSignature: "Int" };
+            case ZodFirstPartyTypeKind.ZodNumber:
+                return { swiftTypeSignature: (schema as ZodNumber).isInt ? "Int" : "Double" };
             case ZodFirstPartyTypeKind.ZodBoolean:
                 return { swiftTypeSignature: "Bool" };
             case ZodFirstPartyTypeKind.ZodDate:
@@ -70,6 +72,10 @@ const zodUnionToSwiftType = (
         const description = schema._def.swift?.description;
         if (description) {
             swiftModel += `/// ${description}\n`;
+        }
+
+        if (state.flags.publicAccess) {
+            swiftModel += "public ";
         }
 
         swiftModel += `struct ${name}: Codable, ${state.flags.conformance} {\n`;
@@ -112,7 +118,13 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
             swiftModel += `/// ${description}\n`;
         }
 
-        swiftModel = `struct ${name}: Codable, ${state.flags.conformance} {\n`;
+        const publicInitArgs: string[] = [];
+
+        if (state.flags.publicAccess) {
+            swiftModel += "public ";
+        }
+
+        swiftModel += `struct ${name}: Codable, ${state.flags.conformance} {\n`;
         Object.entries(schema.shape).forEach(([key, value]) => {
             const childType = zodSchemaToSwiftType(
                 value as ZodType,
@@ -133,9 +145,21 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
                 if (childDescription) {
                     swiftModel += `/// ${childDescription}\n`;
                 }
+
                 swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
+
+                if (state.flags.publicAccess) {
+                    publicInitArgs.push(`${key}: ${childType.swiftTypeSignature}`);
+                }
             }
         });
+        if (state.flags.publicAccess) {
+            swiftModel += `\npublic init(${publicInitArgs.join(", ")}) {\n`;
+            Object.keys(schema.shape).forEach((key) => {
+                swiftModel += `self.${key} = ${key}\n`;
+            });
+            swiftModel += "}\n";
+        }
         swiftModel += "}\n";
 
         return swiftModel;
@@ -165,6 +189,10 @@ const zodEnumToSwiftType = (
             const description = schema._def.swift?.description;
             if (description) {
                 swiftModel += `/// ${description}\n`;
+            }
+
+            if (state.flags.publicAccess) {
+                swiftModel += "public ";
             }
 
             swiftModel = `enum ${name}: String, Codable, ${state.flags.conformance} {\n`;
