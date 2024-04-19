@@ -9,6 +9,7 @@ import {
     ZodNumber,
     ZodOptional,
     ZodRecord,
+    ZodSet,
     ZodType,
     ZodTypeAny,
     ZodUnion,
@@ -33,9 +34,11 @@ export const zodSchemaToSwiftType = (schema: ZodType, state: TRPCSwiftModelState
             case ZodFirstPartyTypeKind.ZodNullable:
                 return zodOptionalOrNullableToSwiftType(schema as ZodOptional<never> | ZodNullable<never>, state, fallbackName);
             case ZodFirstPartyTypeKind.ZodArray:
-                return zodArrayToSwiftType(schema as ZodArray<never>, state, fallbackName);
+                return zodCollectionToSwiftType(schema as ZodArray<never>, state, fallbackName);
             case ZodFirstPartyTypeKind.ZodRecord:
-                return zodRecordToSwiftType(schema as ZodRecord<never>, state, fallbackName);
+                return zodCollectionToSwiftType(schema as ZodRecord<never>, state, fallbackName);
+            case ZodFirstPartyTypeKind.ZodSet:
+                return zodCollectionToSwiftType(schema as ZodSet<never>, state, fallbackName);
             case ZodFirstPartyTypeKind.ZodEffects:
                 return zodEffectsToSwiftType(schema as ZodEffects<never>, state, fallbackName);
             case ZodFirstPartyTypeKind.ZodVoid:
@@ -230,32 +233,13 @@ const zodOptionalOrNullableToSwiftType = (
     };
 };
 
-const zodArrayToSwiftType = (schema: ZodArray<never>, state: TRPCSwiftModelState, fallbackName: string): SwiftTypeGenerationData | null => {
-    const unwrappedResult = zodSchemaToSwiftType(
-        schema._def.type,
-        {
-            ...state,
-            isAlreadyOptional: false,
-        },
-        fallbackName
-    );
-    if (!unwrappedResult) {
-        return null;
-    }
-
-    return {
-        swiftTypeSignature: `[${unwrappedResult.swiftTypeSignature}]`,
-        swiftLocalModel: unwrappedResult.swiftLocalModel,
-    };
-};
-
-const zodRecordToSwiftType = (
-    schema: ZodRecord<never>,
+const zodCollectionToSwiftType = (
+    schema: ZodArray<never> | ZodSet<never> | ZodRecord<never>,
     state: TRPCSwiftModelState,
     fallbackName: string
 ): SwiftTypeGenerationData | null => {
     const unwrappedResult = zodSchemaToSwiftType(
-        schema._def.valueType,
+        schema._def.typeName === ZodFirstPartyTypeKind.ZodArray ? schema._def.type : schema._def.valueType,
         {
             ...state,
             isAlreadyOptional: false,
@@ -266,8 +250,23 @@ const zodRecordToSwiftType = (
         return null;
     }
 
+    let swiftTypeSignature = "";
+    switch (schema._def.typeName) {
+        case ZodFirstPartyTypeKind.ZodArray:
+            swiftTypeSignature = `[${unwrappedResult.swiftTypeSignature}]`;
+            break;
+        case ZodFirstPartyTypeKind.ZodSet:
+            swiftTypeSignature = `Set<${unwrappedResult.swiftTypeSignature}>`;
+            break;
+        case ZodFirstPartyTypeKind.ZodRecord:
+            swiftTypeSignature = `[String: ${unwrappedResult.swiftTypeSignature}]`;
+            break;
+        default:
+            break;
+    }
+
     return {
-        swiftTypeSignature: `[String: ${unwrappedResult.swiftTypeSignature}]`,
+        swiftTypeSignature,
         swiftLocalModel: unwrappedResult.swiftLocalModel,
     };
 };
