@@ -22,6 +22,7 @@ Options:
       all            All named models will be placed in the global scope by default.
       top            Only named models directly referenced by routes will be placed in the global scope by default.
       none           No models will be placed in the global scope by default.
+  -p, --public       Assign the public access modifier for all generated Swift models and routes.
   -a, --alias        Create public type aliases for all models in the global scope.
   -s, --shared       Create a shared singleton instance of the generated Swift client.
   -h, --help         Display this help message
