@@ -103,6 +103,9 @@ const zodUnionToSwiftType = (
                     optionTypeSignature += "?";
                 }
 
+                if (state.flags.publicAccess) {
+                    swiftModel += "public ";
+                }
                 swiftModel += `var ${optionFieldSignature}: ${optionTypeSignature}\n`;
             }
         });
@@ -149,6 +152,9 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
                     swiftModel += `/// ${childDescription}\n`;
                 }
 
+                if (state.flags.publicAccess) {
+                    swiftModel += "public ";
+                }
                 swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
 
                 if (state.flags.publicAccess) {
