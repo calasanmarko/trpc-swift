@@ -108,7 +108,7 @@ class AppRouter: TRPCClientData {
 
         /// Fetches a user by ID.
         func get(input: GetInputType) async throws -> User {
-            return try await TRPCClient.shared.sendQuery(url: url.appendingPathComponent("get"), middlewares: middlewares, input: input)
+            return try await TRPCClient.shared.sendQuery(url: url.appendingPathExtension("get"), middlewares: middlewares, input: input)
         }
     }
 }
