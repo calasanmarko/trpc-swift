@@ -80,7 +80,7 @@ export const trpcStructureToSwiftClass = (name: string, structure: TRPCStructure
         if (state.routeDepth === 1) {
             swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
         } else {
-            swiftClass += `clientData.url.appendingPathComponent("${name}")\n`;
+            swiftClass += `clientData.url.appendingPathExtension("${name}")\n`;
         }
         swiftClass += "}\n\n";
         swiftClass += "fileprivate var middlewares: [TRPCMiddleware] {\n";
@@ -184,16 +184,17 @@ const trpcProcedureToSwiftMethodAndLocalModels = (name: string, procedure: Gener
             swiftMethod += " {\n";
         }
 
+        const pathMethod = state.routeDepth === 0 ? "appendingPathComponent" : "appendingPathExtension";
         if (procedure._def.query) {
             swiftMethod += `${
                 hasOutput ? "return" : "let _: TRPCClient.EmptyObject ="
-            } try await TRPCClient.shared.sendQuery(url: url.appendingPathComponent("${name}"), middlewares: middlewares, input: ${
+            } try await TRPCClient.shared.sendQuery(url: url.${pathMethod}("${name}"), middlewares: middlewares, input: ${
                 addedInput ? "input" : "TRPCClient.EmptyObject()"
             })\n`;
         } else if (procedure._def.mutation) {
             swiftMethod += `${
                 hasOutput ? "return" : "let _: TRPCClient.EmptyObject ="
-            } try await TRPCClient.shared.sendMutation(url: url.appendingPathComponent("${name}"), middlewares: middlewares, input: ${
+            } try await TRPCClient.shared.sendMutation(url: url.${pathMethod}("${name}"), middlewares: middlewares, input: ${
                 addedInput ? "input" : "TRPCClient.EmptyObject()"
             })\n`;
         } else {
