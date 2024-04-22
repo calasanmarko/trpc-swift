@@ -5,9 +5,7 @@
     "repository": "https://github.com/calasanmarko/trpc-swift.git",
     "author": "Marko Calasan <calasanmarko@hotmail.com>",
     "main": "dist/index.js",
-    "bin": {
-        "trpc-swift": "dist/cli.js"
-    },
+    "bin": "dist/cli.js",
     "license": "MIT",
     "type": "module",
     "scripts": {
