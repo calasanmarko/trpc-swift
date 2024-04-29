@@ -158,7 +158,8 @@ const zodObjectToSwiftType = (schema: AnyZodObject, state: TRPCSwiftModelState, 
                 swiftModel += `var ${key}: ${childType.swiftTypeSignature}\n`;
 
                 if (state.flags.publicAccess) {
-                    publicInitArgs.push(`${key}: ${childType.swiftTypeSignature}`);
+                    const isArgOptional = childType.swiftTypeSignature.endsWith("?");
+                    publicInitArgs.push(`${key}: ${childType.swiftTypeSignature}${isArgOptional ? " = nil" : ""}`);
                 }
             }
         });
