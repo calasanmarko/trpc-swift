@@ -1,6 +1,6 @@
 {
     "name": "trpc-swift",
-    "version": "0.1.32",
+    "version": "0.1.33",
     "description": "Generates Swift clients and models from tRPC routers.",
     "repository": "https://github.com/calasanmarko/trpc-swift.git",
     "author": "Marko Calasan <calasanmarko@hotmail.com>",

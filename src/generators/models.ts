@@ -204,7 +204,7 @@ const zodEnumToSwiftType = (
                 swiftModel += "public ";
             }
 
-            swiftModel = `enum ${name}: String, Codable, ${state.flags.conformance} {\n`;
+            swiftModel += `enum ${name}: String, Codable, ${state.flags.conformance} {\n`;
             schema._def.values.forEach((value) => {
                 swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
             });
