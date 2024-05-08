@@ -67,11 +67,7 @@ public struct TRPCError: Error, Decodable {
 }
 
 struct TRPCRequest<T: Encodable>: Encodable {
-    struct DataContainer: Encodable {
-        let json: T?
-    }
-    
-    let zero: DataContainer
+    let zero: T?
     
     enum CodingKeys: String, CodingKey {
         case zero = "0"
@@ -80,11 +76,7 @@ struct TRPCRequest<T: Encodable>: Encodable {
 
 struct TRPCResponse<T: Decodable>: Decodable {
     struct Result: Decodable {
-        struct DataContainer: Decodable {
-            let json: T
-        }
-        
-        let data: DataContainer
+        let data: T
     }
     
     struct ErrorContainer: Decodable {
@@ -118,7 +110,7 @@ class TRPCClient {
         
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .formatted(dateFormatter)
-        let data = try encoder.encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        let data = try encoder.encode(TRPCRequest(zero: Request.self == EmptyObject.self ? nil : input))
         
         components.queryItems = [
             URLQueryItem(name: "batch", value: "1"),
@@ -143,7 +135,7 @@ class TRPCClient {
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .formatted(dateFormatter)
-        let data = try encoder.encode(TRPCRequest(zero: .init(json: Request.self == EmptyObject.self ? nil : input)))
+        let data = try encoder.encode(TRPCRequest(zero: Request.self == EmptyObject.self ? nil : input))
 
         components?.queryItems = [
             URLQueryItem(name: "batch", value: "1")
@@ -180,7 +172,7 @@ class TRPCClient {
         }
 
         if let result = decoded.result {
-            return result.data.json
+            return result.data
         }
 
         if Response.self == EmptyObject.self {

@@ -135,3 +135,6 @@ dist
 
 UserInterfaceState.xcuserstate
 .DS_Store
+
+# Intellij based IDE project files
+.idea
