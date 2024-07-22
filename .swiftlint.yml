@@ -1,5 +1,0 @@
-disabled_rules:
-    - identifier_name
-    - type_name
-    - nesting
-line_length: 240
