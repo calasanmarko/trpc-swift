@@ -1,0 +1,9 @@
+{
+  "name": "trpc-swift-sample",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "superjson": "^2.2.1",
+    "trpc-swift": "workspace:*"
+  }
+}

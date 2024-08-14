@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "rootDir": "packages/trpc-swift/src",
+        "outDir": "dist",
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "sourceMap": true,
+        "incremental": true,
+        "declaration": true
+    },
+    "include": ["packages/trpc-swift/src/**/*.ts"]
+}

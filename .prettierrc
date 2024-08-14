@@ -1,0 +1,7 @@
+{
+    "singleAttributePerLine": true,
+    "tabWidth": 4,
+    "trailingComma": "es5",
+    "printWidth": 120,
+    "overrides": [{ "files": "package.json", "options": { "tabWidth": 2 } }]
+}

@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "bun",
+            "internalConsoleOptions": "neverOpen",
+            "request": "launch",
+            "name": "Debug tRPC Swift",
+            "program": "index.ts",
+            "cwd": "${workspaceFolder}/packages/trpc-swift/src",
+            "stopOnEntry": false,
+            "watchMode": true
+        },
+        {
+            "type": "bun",
+            "internalConsoleOptions": "neverOpen",
+            "request": "launch",
+            "name": "Run sample tRPC Server",
+            "program": "index.ts",
+            "cwd": "${workspaceFolder}/packages/trpc-swift-sample/src",
+            "stopOnEntry": false,
+            "watchMode": true
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Dev Environment",
+            "configurations": ["Debug tRPC Swift", "Run sample tRPC Server"]
+        }
+    ]
+}

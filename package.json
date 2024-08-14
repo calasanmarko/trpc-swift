@@ -1,0 +1,18 @@
+{
+  "name": "trpc-swift",
+  "module": "src/index.ts",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@trpc/server": "^10.45.2",
+    "@types/bun": "latest",
+    "eslint": "^9.7.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.3",
+    "zod": "^3.23.8",
+    "typescript-eslint": "^7.16.1"
+  }
+}
