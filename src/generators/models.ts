@@ -71,6 +71,7 @@ const zodUnionToSwiftType = (
 ): SwiftTypeGenerationData | null => {
     return wrapZodSchemaWithModels(schema, state, fallbackName, (name) => {
         let swiftModel = "";
+        let encodeFunctionContent = "";
 
         const description = schema._def.swift?.description;
         if (description) {
@@ -107,8 +108,23 @@ const zodUnionToSwiftType = (
                     swiftModel += "public ";
                 }
                 swiftModel += `var ${optionFieldSignature}: ${optionTypeSignature}\n`;
+
+                if (state.flags.publicAccess) {
+                    swiftModel += `\npublic init(${optionFieldSignature}: ${optionTypeSignature.slice(0, -1)}) {\n`;
+                    swiftModel += `self.${optionFieldSignature} = ${optionFieldSignature}\n`;
+                    swiftModel += "}\n";
+                }
+
+                encodeFunctionContent += `if let ${optionFieldSignature} = ${optionFieldSignature} {\n`;
+                encodeFunctionContent += `return try ${optionFieldSignature}.encode(to: encoder)\n`;
+                encodeFunctionContent += "}\n";
             }
         });
+
+        swiftModel += "public func encode(to encoder: any Encoder) throws {\n";
+        swiftModel += encodeFunctionContent;
+        swiftModel += "}\n";
+
         swiftModel += "}\n";
 
         return swiftModel;
@@ -205,8 +221,10 @@ const zodEnumToSwiftType = (
                 swiftModel += "public ";
             }
 
+            const values = Array.isArray(schema._def.values) ? schema._def.values : [schema._def.values];
+
             swiftModel += `enum ${name}: String, Codable, ${state.flags.conformance} {\n`;
-            schema._def.values.forEach((value) => {
+            values.forEach((value) => {
                 swiftModel += `case ${processFieldName(value)} = "${value}"\n`;
             });
             swiftModel += "}\n";
