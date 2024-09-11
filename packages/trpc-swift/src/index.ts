@@ -10,7 +10,7 @@ export class TRPCSwift {
 
     constructor(config: Partial<TRPCSwiftConfiguration> & Pick<TRPCSwiftConfiguration, "router">) {
         this.config = {
-            scope: "internal",
+            permissionScope: "internal",
             models: {
                 defaultGlobals: "named",
             },
@@ -67,7 +67,7 @@ export class TRPCSwift {
         }
 
         for (const [name, childRouter] of Object.entries(childRouters)) {
-            code += `lazy var ${name} = ${swiftTypeName({ name })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares)\n`;
+            code += `${this.permissionPrefix()}lazy var ${name} = ${swiftTypeName({ name })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares)\n`;
             code += this.router({
                 router: childRouter,
                 name,
@@ -77,11 +77,11 @@ export class TRPCSwift {
         }
 
         const result = `
-        class ${swiftTypeName({ name })} {
-            var url: URL
-            var middlewares: [TRPCMiddleware]
+        ${this.permissionPrefix()}class ${swiftTypeName({ name })} {
+            fileprivate var url: URL
+            fileprivate var middlewares: [TRPCMiddleware]
 
-            init(url: URL, middlewares: [TRPCMiddleware] = []) {
+            ${this.permissionPrefix()}init(url: URL, middlewares: [TRPCMiddleware] = []) {
                 self.url = url
                 self.middlewares = middlewares
             }
@@ -141,7 +141,7 @@ export class TRPCSwift {
         const appendFunction = routerDepth > 0 ? "appendingPathExtension" : "appendingPathComponent";
         const emptyObjectType = `TRPCClient.EmptyObject`;
 
-        result += `func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
+        result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
             ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.sendQuery(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
         }\n\n`;
         return result;
@@ -299,7 +299,7 @@ export class TRPCSwift {
 
     enumeration({ values, name }: { values: (string | number)[]; name: string }) {
         let isValid = false;
-        let definition = `enum ${name}: String, Codable, Equatable {\n`;
+        let definition = `${this.permissionPrefix()}enum ${name}: String, Codable, Equatable {\n`;
         for (const value of values) {
             if (typeof value === "string" || typeof value === "number") {
                 definition += `case ${value}\n`;
@@ -333,7 +333,7 @@ export class TRPCSwift {
                     }
 
                     const forceOptional = isUnion && !result.name.endsWith("?");
-                    swiftProperties += `var ${key}: ${result.name}${forceOptional ? "?" : ""}\n`;
+                    swiftProperties += `${this.permissionPrefix()}var ${key}: ${result.name}${forceOptional ? "?" : ""}\n`;
                     propertiesToTypeNames[key] = result.name;
                 }
             } catch (e) {
@@ -349,7 +349,7 @@ export class TRPCSwift {
                     })
                 );
 
-                const encoder = `func encode(to encoder: Encoder) throws {
+                const encoder = `${this.permissionPrefix()}func encode(to encoder: Encoder) throws {
                     ${Object.keys(propertiesToTypeNames)
                         .map(
                             (property) => `if let ${property} = ${property} {
@@ -360,7 +360,7 @@ export class TRPCSwift {
                         .join("\n\n")}
                     }`;
 
-                const decoder = `init(from decoder: Decoder) throws {
+                const decoder = `${this.permissionPrefix()}init(from decoder: Decoder) throws {
                     ${Object.entries(propertiesToTypeNames)
                         .map(([property, typeName]) => `self.${property} = try? ${typeName}(from: decoder)`)
                         .join("\n")}
@@ -376,7 +376,7 @@ export class TRPCSwift {
             return { initializers, encoder, decoder };
         })();
 
-        let definition = `struct ${name}: Codable, Equatable {\n`;
+        let definition = `${this.permissionPrefix()}struct ${name}: Codable, Equatable {\n`;
         if (definitions) {
             definition += `${definitions}\n`;
         }
@@ -404,7 +404,7 @@ export class TRPCSwift {
             content.push(`self.${property} = ${property}`);
         }
 
-        return `init(${initArguments.join(", ")}) {
+        return `${this.permissionPrefix()}init(${initArguments.join(", ")}) {
             ${content.join("\n")}
         }`;
     }
@@ -422,6 +422,10 @@ export class TRPCSwift {
             scope,
             isUnion: true,
         });
+    }
+
+    permissionPrefix() {
+        return this.config.permissionScope === "public" ? "public " : "";
     }
 }
 

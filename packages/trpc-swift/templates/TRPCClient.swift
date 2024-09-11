@@ -161,8 +161,3 @@ class TRPCClient {
         throw TRPCError(code: .missingOutputPayload, message: "Missing output payload.", data: nil)
     }
 }
-
-private protocol TRPCClientData: AnyObject {
-    var url: URL { get }
-    var middlewares: [TRPCMiddleware] { get }
-}

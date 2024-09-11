@@ -3,7 +3,7 @@ import { appRouter } from "./src/router";
 
 export default {
     router: appRouter,
-    scope: "public",
+    permissionScope: "public",
     models: {
         defaultGlobals: "named",
     },

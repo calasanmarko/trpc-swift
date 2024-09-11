@@ -2,9 +2,9 @@ import type { AnyRouter, AnyTRPCProcedure, initTRPC } from "@trpc/server";
 
 export declare type TRPCSwiftConfiguration = {
     router: AnyRouter;
-    scope: "internal" | "public";
+    permissionScope: "internal" | "public";
     models: {
-        defaultGlobals: "all" | "named" | "none";
+        defaultGlobals: "named" | "none";
     };
 };
 
