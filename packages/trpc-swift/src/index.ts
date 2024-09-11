@@ -1,14 +1,14 @@
 import { z, ZodFirstPartyTypeKind } from "zod";
-import SampleConfig from "trpc-swift-sample/trpc-swift";
+// import SampleConfig from "trpc-swift-sample/trpc-swift";
 import { indent, swiftTypeName, swiftZodTypeName } from "./format";
-import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftConfiguration } from "./types";
+import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftFullConfiguration, TRPCSwiftConfiguration } from "./types";
 
 export class TRPCSwift {
     globalDefinitions: string[] = [];
     globalScope: Set<z.ZodTypeAny> = new Set();
-    config: TRPCSwiftConfiguration;
+    config: TRPCSwiftFullConfiguration;
 
-    constructor(config: Partial<TRPCSwiftConfiguration> & Pick<TRPCSwiftConfiguration, "router">) {
+    constructor(config: TRPCSwiftConfiguration) {
         this.config = {
             permissionScope: "internal",
             models: {
@@ -27,7 +27,7 @@ export class TRPCSwift {
         });
 
         const result = `
-            ${await Bun.file("../templates/TRPCClient.swift").text()}
+            ${await Bun.file(`${import.meta.dir}/../templates/TRPCClient.swift`).text()}
             ${this.globalDefinitions.join("\n\n")}
             ${routerCode}
         `;
@@ -431,5 +431,5 @@ export class TRPCSwift {
     }
 }
 
-const swift = await new TRPCSwift(SampleConfig).root();
-await Bun.write("../output/Test.swift", swift);
+// const swift = await new TRPCSwift(SampleConfig).root();
+// await Bun.write("../output/Test.swift", swift);

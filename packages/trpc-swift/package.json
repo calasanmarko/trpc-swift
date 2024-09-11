@@ -2,6 +2,7 @@
   "name": "trpc-swift",
   "module": "src/index.ts",
   "types": "src/types.d.ts",
+  "bin": "src/cli.ts",
   "type": "module",
   "devDependencies": {
     "trpc-swift-sample": "workspace:*"
