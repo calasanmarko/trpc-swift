@@ -4,7 +4,7 @@ import { appRouter } from "./src/router";
 export default {
     router: appRouter,
     outFile: "../trpc-swift/output/Test.swift",
-    models: {
-        defaultGlobals: "named",
+    defaultInclude: {
+        procedures: "all",
     },
 } satisfies TRPCSwiftConfiguration;

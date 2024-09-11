@@ -1,8 +1,9 @@
 import { initTRPC } from "@trpc/server";
-import { extendZodWithSwift } from "trpc-swift/src/zod";
+import { extendZodWithSwift } from "trpc-swift";
 import { z } from "zod";
+import { TRPCSwiftMeta } from "../../trpc-swift/src/types";
 
-const t = initTRPC.create({});
+const t = initTRPC.meta<TRPCSwiftMeta>().create({});
 const router = t.router;
 const publicProcedure = t.procedure;
 
@@ -25,10 +26,12 @@ export const personSchema = z
         favoriteColors: z.array(z.enum(["red", "green", "blue"]).optional()).nullish(),
         dateCreated: z.coerce.date(),
     })
+    .swift({ name: "ManualNamePerson", description: "A person" })
     .strict();
 
 export const appRouter = router({
     stringLength: publicProcedure
+        .meta({ swift: { description: "Get the length of a string" } })
         .input(z.string())
         .output(z.number().int())
         .query(({ input }) => input.length),

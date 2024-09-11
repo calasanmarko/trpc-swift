@@ -8,17 +8,28 @@ export declare type TRPCSwiftFullConfiguration = {
         structs: string[];
         enums: string[];
     };
-    models: {
-        defaultGlobals: "named" | "none";
+    defaultInclude: {
+        procedures: "all" | "none";
+    };
+    defaultGlobals: {
+        models: "named" | "none";
     };
 };
 export declare type TRPCSwiftConfiguration = Partial<TRPCSwiftFullConfiguration> &
     Pick<TRPCSwiftFullConfiguration, "router" | "outFile">;
 
-export type TRPCCreateResult = ReturnType<typeof initTRPC.create>;
+export type TRPCSwiftMeta = {
+    swift?: {
+        include?: boolean;
+        description?: string;
+    };
+};
+
+export type TRPCCreateResult = ReturnType<ReturnType<typeof initTRPC.meta<TRPCSwiftMeta>>["create"]>;
 export type TRPCAppRouter = ReturnType<TRPCCreateResult["router"]>;
 export type TRPCProcedureWithInput = AnyTRPCProcedure & {
     _def: AnyTRPCProcedure["_def"] & {
+        meta?: TRPCSwiftMeta;
         inputs: unknown[];
         output?: unknown | undefined;
     };
