@@ -417,7 +417,7 @@ export class TRPCSwift {
         return this.structure({
             properties: types.reduce(
                 (acc, type, index) => {
-                    acc[`type${index}`] = type;
+                    acc[type._def.swift?.name ?? `type${index}`] = type;
                     return acc;
                 },
                 {} as Record<string, z.ZodTypeAny>
