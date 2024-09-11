@@ -1,6 +1,6 @@
-import { z, ZodFirstPartyTypeKind } from "zod";
+import { z } from "zod";
 // import SampleConfig from "trpc-swift-sample/trpc-swift";
-import { indent, swiftTypeName, swiftZodTypeName } from "./format";
+import { indent, swiftFieldName, swiftTypeName, swiftZodTypeName } from "./format";
 import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftFullConfiguration, TRPCSwiftConfiguration } from "./types";
 
 export class TRPCSwift {
@@ -21,7 +21,7 @@ export class TRPCSwift {
     async root(): Promise<string> {
         const routerCode = this.router({
             router: this.config.router._def.procedures,
-            name: "AppRouter",
+            name: "App",
             scope: new Set(),
             routerDepth: 0,
         });
@@ -67,7 +67,7 @@ export class TRPCSwift {
         }
 
         for (const [name, childRouter] of Object.entries(childRouters)) {
-            code += `${this.permissionPrefix()}lazy var ${name} = ${swiftTypeName({ name })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares)\n`;
+            code += `${this.permissionPrefix()}lazy var ${name} = ${swiftTypeName({ name: `${name}Router` })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares)\n`;
             code += this.router({
                 router: childRouter,
                 name,
@@ -77,7 +77,7 @@ export class TRPCSwift {
         }
 
         const result = `
-        ${this.permissionPrefix()}class ${swiftTypeName({ name })} {
+        ${this.permissionPrefix()}class ${swiftTypeName({ name: `${name}Router` })} {
             fileprivate var url: URL
             fileprivate var middlewares: [TRPCMiddleware]
 
@@ -104,16 +104,8 @@ export class TRPCSwift {
         scope: Set<z.ZodTypeAny>;
         routerDepth: number;
     }): string {
-        const input = procedure._def.inputs.at(0);
-        const output = procedure._def.output;
-
-        if (input !== undefined && !(input instanceof z.ZodType)) {
-            throw new Error(`Procedure ${name} has non-Zod input`);
-        }
-
-        if (output !== undefined && !(output instanceof z.ZodType)) {
-            throw new Error(`Procedure ${name} has non-Zod output`);
-        }
+        const input = procedure._def.inputs.at(0) as z.ZodTypeAny;
+        const output = procedure._def.output as z.ZodTypeAny;
 
         let inputType = "";
         let outputType = "";
@@ -159,12 +151,17 @@ export class TRPCSwift {
         scope: Set<z.ZodTypeAny>;
     }): { name: string; definition?: string } | null {
         name = swiftZodTypeName({ name, type });
-
         const wrapped = (strings: TemplateStringsArray, ...params: z.ZodTypeAny[]) => {
             let innerType = params[0];
-            if (type instanceof z.ZodOptional || type instanceof z.ZodNullable) {
-                while (innerType instanceof z.ZodOptional || innerType instanceof z.ZodNullable) {
-                    innerType = innerType.unwrap();
+            if (
+                type._def.typeName === z.ZodFirstPartyTypeKind.ZodOptional ||
+                type._def.typeName === z.ZodFirstPartyTypeKind.ZodNullable
+            ) {
+                while (
+                    innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodOptional ||
+                    innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodNullable
+                ) {
+                    innerType = (innerType as z.ZodOptional<z.ZodTypeAny> | z.ZodNullable<z.ZodTypeAny>).unwrap();
                 }
             }
 
@@ -186,61 +183,61 @@ export class TRPCSwift {
 
         const result = (() => {
             switch (type._def.typeName) {
-                case ZodFirstPartyTypeKind.ZodString:
+                case z.ZodFirstPartyTypeKind.ZodString:
                     return { name: "String" };
-                case ZodFirstPartyTypeKind.ZodNumber:
+                case z.ZodFirstPartyTypeKind.ZodNumber:
                     return { name: (type as z.ZodNumber).isInt ? "Int" : "Float" };
-                case ZodFirstPartyTypeKind.ZodBigInt:
+                case z.ZodFirstPartyTypeKind.ZodBigInt:
                     return { name: "Int" };
-                case ZodFirstPartyTypeKind.ZodBoolean:
+                case z.ZodFirstPartyTypeKind.ZodBoolean:
                     return { name: "Bool" };
-                case ZodFirstPartyTypeKind.ZodDate:
+                case z.ZodFirstPartyTypeKind.ZodDate:
                     return { name: "Date" };
-                case ZodFirstPartyTypeKind.ZodSymbol:
+                case z.ZodFirstPartyTypeKind.ZodSymbol:
                     return { name: "String" };
-                case ZodFirstPartyTypeKind.ZodOptional:
+                case z.ZodFirstPartyTypeKind.ZodOptional:
                     return wrapped`${type}?`;
-                case ZodFirstPartyTypeKind.ZodNullable:
+                case z.ZodFirstPartyTypeKind.ZodNullable:
                     return wrapped`${type}?`;
-                case ZodFirstPartyTypeKind.ZodArray:
+                case z.ZodFirstPartyTypeKind.ZodArray:
                     return wrapped`[${(type as z.ZodArray<z.ZodTypeAny>)._def.type}]`;
-                case ZodFirstPartyTypeKind.ZodRecord:
+                case z.ZodFirstPartyTypeKind.ZodRecord:
                     return wrapped`[String: ${(type as z.ZodRecord)._def.valueType}]`;
-                case ZodFirstPartyTypeKind.ZodMap:
+                case z.ZodFirstPartyTypeKind.ZodMap:
                     return wrapped`[String: ${(type as z.ZodMap)._def.valueType}>]`;
-                case ZodFirstPartyTypeKind.ZodSet:
+                case z.ZodFirstPartyTypeKind.ZodSet:
                     return wrapped`Set<${(type as z.ZodSet)._def.valueType}>`;
-                case ZodFirstPartyTypeKind.ZodEffects:
+                case z.ZodFirstPartyTypeKind.ZodEffects:
                     return wrapped`${(type as z.ZodEffects<never, never>)._def.schema}`;
-                case ZodFirstPartyTypeKind.ZodDefault:
+                case z.ZodFirstPartyTypeKind.ZodDefault:
                     return wrapped`${(type as z.ZodDefault<never>)._def.innerType}`;
-                case ZodFirstPartyTypeKind.ZodCatch:
+                case z.ZodFirstPartyTypeKind.ZodCatch:
                     return wrapped`${(type as z.ZodCatch<never>)._def.innerType}`;
-                case ZodFirstPartyTypeKind.ZodBranded:
+                case z.ZodFirstPartyTypeKind.ZodBranded:
                     return wrapped`${(type as z.ZodBranded<never, never>).unwrap()}`;
-                case ZodFirstPartyTypeKind.ZodReadonly:
+                case z.ZodFirstPartyTypeKind.ZodReadonly:
                     return wrapped`${(type as z.ZodReadonly<never>).unwrap()}`;
-                case ZodFirstPartyTypeKind.ZodLazy:
+                case z.ZodFirstPartyTypeKind.ZodLazy:
                     return wrapped`${(type as z.ZodLazy<never>)._def.getter()}`;
-                case ZodFirstPartyTypeKind.ZodPromise:
+                case z.ZodFirstPartyTypeKind.ZodPromise:
                     return wrapped`${(type as z.ZodPromise<never>)._def.type}`;
-                case ZodFirstPartyTypeKind.ZodPipeline:
+                case z.ZodFirstPartyTypeKind.ZodPipeline:
                     return wrapped`${(type as z.ZodPipeline<z.ZodNever, never>)._def.in}`;
-                case ZodFirstPartyTypeKind.ZodAny:
+                case z.ZodFirstPartyTypeKind.ZodAny:
                     return { name: "Any" };
-                case ZodFirstPartyTypeKind.ZodUnknown:
+                case z.ZodFirstPartyTypeKind.ZodUnknown:
                     return { name: "Any" };
-                case ZodFirstPartyTypeKind.ZodNaN:
+                case z.ZodFirstPartyTypeKind.ZodNaN:
                     return null;
-                case ZodFirstPartyTypeKind.ZodNull:
+                case z.ZodFirstPartyTypeKind.ZodNull:
                     return null;
-                case ZodFirstPartyTypeKind.ZodVoid:
+                case z.ZodFirstPartyTypeKind.ZodVoid:
                     return null;
-                case ZodFirstPartyTypeKind.ZodNever:
+                case z.ZodFirstPartyTypeKind.ZodNever:
                     return null;
-                case ZodFirstPartyTypeKind.ZodUndefined:
+                case z.ZodFirstPartyTypeKind.ZodUndefined:
                     return null;
-                case ZodFirstPartyTypeKind.ZodObject:
+                case z.ZodFirstPartyTypeKind.ZodObject:
                     if (scope.has(type)) {
                         return { name };
                     }
@@ -250,7 +247,7 @@ export class TRPCSwift {
                         name,
                         scope: new Set(scope),
                     });
-                case ZodFirstPartyTypeKind.ZodEnum:
+                case z.ZodFirstPartyTypeKind.ZodEnum:
                     if (scope.has(type)) {
                         return { name };
                     }
@@ -259,7 +256,7 @@ export class TRPCSwift {
                         values: (type as z.ZodEnum<never>)._def.values,
                         name,
                     });
-                case ZodFirstPartyTypeKind.ZodLiteral:
+                case z.ZodFirstPartyTypeKind.ZodLiteral:
                     if (scope.has(type)) {
                         return { name };
                     }
@@ -268,7 +265,7 @@ export class TRPCSwift {
                         values: [(type as z.ZodLiteral<never>)._def.value],
                         name,
                     });
-                case ZodFirstPartyTypeKind.ZodUnion:
+                case z.ZodFirstPartyTypeKind.ZodUnion:
                     if (scope.has(type)) {
                         return { name };
                     }
@@ -303,8 +300,8 @@ export class TRPCSwift {
         let isValid = false;
         let definition = `${this.permissionPrefix()}enum ${name}: String, Codable, Equatable {\n`;
         for (const value of values) {
-            if (typeof value === "string" || typeof value === "number") {
-                definition += `case ${value}\n`;
+            if (typeof value === "string") {
+                definition += `case ${swiftFieldName({ name: value })} = "${value}"\n`;
                 isValid = true;
             }
         }
@@ -328,15 +325,16 @@ export class TRPCSwift {
         const propertiesToTypeNames: Record<string, string> = {};
         for (const [key, value] of Object.entries(properties)) {
             try {
-                const result = this.zodPrimitive({ type: value, name: key, scope });
+                const formattedKey = swiftFieldName({ name: key });
+                const result = this.zodPrimitive({ type: value, name: formattedKey, scope: new Set(scope) });
                 if (result) {
                     if (result.definition && !this.globalScope.has(value)) {
                         definitions += `${result.definition}\n`;
                     }
 
                     const forceOptional = isUnion && !result.name.endsWith("?");
-                    swiftProperties += `${this.permissionPrefix()}var ${key}: ${result.name}${forceOptional ? "?" : ""}\n`;
-                    propertiesToTypeNames[key] = result.name;
+                    swiftProperties += `${this.permissionPrefix()}var ${formattedKey}: ${result.name}${forceOptional ? "?" : ""}\n`;
+                    propertiesToTypeNames[formattedKey] = result.name;
                 }
             } catch (e) {
                 console.error(e);

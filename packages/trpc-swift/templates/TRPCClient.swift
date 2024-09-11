@@ -12,6 +12,7 @@ public enum DecodableValue: Decodable {
     case double(Double)
     case bool(Bool)
     case dictionary([String: DecodableValue])
+    case array([DecodableValue])
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -23,6 +24,8 @@ public enum DecodableValue: Decodable {
             self = .double(dbl)
         } else if let bool = try? container.decode(Bool.self) {
             self = .bool(bool)
+        } else if let array = try? container.decode([DecodableValue].self) {
+            self = .array(array)
         } else {
             let dict = try container.decode([String: DecodableValue].self)
             self = .dictionary(dict)

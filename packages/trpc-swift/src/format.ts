@@ -34,6 +34,29 @@ export const swiftTypeName = ({ name, preferredName }: { name: string; preferred
     return reservedWords.has(finalName) ? `_${finalName}` : finalName;
 };
 
+export const swiftFieldName = ({ name }: { name: string }) => {
+    const filteredName = name
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/_([a-z])/gi, ($1) => $1.toUpperCase().replace("_", ""));
+
+    const reservedWords = new Set([
+        "public",
+        "private",
+        "internal",
+        "default",
+        "self",
+        "class",
+        "enum",
+        "struct",
+        "init",
+        "let",
+        "try",
+        "do",
+        "catch",
+    ]);
+    return reservedWords.has(filteredName) ? `_${filteredName}` : filteredName;
+};
+
 export const swiftZodTypeName = ({ name, type }: { name: string; type: z.ZodTypeAny }) => {
     return swiftTypeName({
         name,
