@@ -4,6 +4,10 @@ export declare type TRPCSwiftFullConfiguration = {
     router: AnyRouter;
     permissionScope: "internal" | "public";
     outFile: string;
+    conformance: {
+        structs: string[];
+        enums: string[];
+    };
     models: {
         defaultGlobals: "named" | "none";
     };

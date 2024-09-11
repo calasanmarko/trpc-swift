@@ -37,7 +37,8 @@ export const swiftTypeName = ({ name, preferredName }: { name: string; preferred
 export const swiftFieldName = ({ name }: { name: string }) => {
     const filteredName = name
         .replace(/[^a-zA-Z0-9]+/g, "_")
-        .replace(/_([a-z])/gi, ($1) => $1.toUpperCase().replace("_", ""));
+        .replace(/_([a-z])/gi, ($1) => $1.toUpperCase().replace("_", ""))
+        .replace(/^([A-Z])/, ($1) => $1.toLowerCase());
 
     const reservedWords = new Set([
         "public",

@@ -11,6 +11,10 @@ export class TRPCSwift {
     constructor(config: TRPCSwiftConfiguration) {
         this.config = {
             permissionScope: "internal",
+            conformance: {
+                structs: ["Codable", "Equatable", "Hashable"],
+                enums: ["Codable", "Equatable", "Hashable", "CaseIterable"],
+            },
             models: {
                 defaultGlobals: "named",
             },
@@ -298,7 +302,7 @@ export class TRPCSwift {
 
     enumeration({ values, name }: { values: (string | number)[]; name: string }) {
         let isValid = false;
-        let definition = `${this.permissionPrefix()}enum ${name}: String, Codable, Equatable {\n`;
+        let definition = `${this.permissionPrefix()}enum ${name}: String, ${this.config.conformance.enums.join(", ")} {\n`;
         for (const value of values) {
             if (typeof value === "string") {
                 definition += `case ${swiftFieldName({ name: value })} = "${value}"\n`;
@@ -376,7 +380,7 @@ export class TRPCSwift {
             return { initializers, encoder, decoder };
         })();
 
-        let definition = `${this.permissionPrefix()}struct ${name}: Codable, Equatable {\n`;
+        let definition = `${this.permissionPrefix()}struct ${name}: ${this.config.conformance.structs.join(", ")} {\n`;
         if (definitions) {
             definition += `${definitions}\n`;
         }
