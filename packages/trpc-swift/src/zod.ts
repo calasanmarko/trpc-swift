@@ -20,7 +20,8 @@ export const extendZodWithSwift = (zod: typeof z) => {
     zod.ZodType.prototype.swift = function (metadata: ZodSwiftMetadata) {
         this._def.swift = {
             name: metadata.name ?? this._def.swift?.name,
-            description: metadata.description,
+            description: metadata.description ?? this._def.swift?.description,
+            global: metadata.global ?? this._def.swift?.global,
         };
         return this;
     };

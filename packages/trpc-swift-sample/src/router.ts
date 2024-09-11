@@ -16,81 +16,82 @@ export const personSchema = z
         classes: z
             .object({
                 name: z.string(),
-                isCool: z.boolean().nullable(),
+                isCool: z.boolean().nullish(),
             })
             .array()
             .swift({
                 name: "Person",
             }),
-        favoriteColors: z.array(z.enum(["red", "green", "blue"]).optional()).nullable(),
+        favoriteColors: z.array(z.enum(["red", "green", "blue"]).optional()).nullish(),
         dateCreated: z.coerce.date(),
     })
     .strict();
 
 export const appRouter = router({
-    luka: publicProcedure.input(z.string()).query(() => {
-        return;
-    }),
-
     stringLength: publicProcedure
         .input(z.string())
         .output(z.number().int())
         .query(({ input }) => input.length),
 
-    people: publicProcedure
-        .input(personSchema)
-        .output(
-            z.object({
-                coolnessFactor: z.number(),
-                bestProperty: z
-                    .object({
-                        classes: z.object({
-                            type: z.literal("classes"),
-                            classes: personSchema.shape.classes,
-                        }),
-                        gpa: z.object({
-                            type: z.literal("gpa"),
-                            gpa: personSchema.shape.gpa,
-                        }),
-                        nothing: z.literal(null),
-                    })
-                    .optional(),
-                someDate: z.date(),
-            })
-        )
-        .query(({ input }) => {
-            return {
-                coolnessFactor: 10,
-                bestProperty: {
-                    classes: {
-                        type: "classes",
-                        classes: input.classes,
+    childRouter: router({
+        people: publicProcedure
+            .input(personSchema)
+            .output(
+                z.object({
+                    coolnessFactor: z.number(),
+                    bestProperty: z
+                        .object({
+                            classes: z.object({
+                                type: z.literal("classes"),
+                                classes: personSchema.shape.classes,
+                            }),
+                            gpa: z
+                                .object({
+                                    type: z.literal("gpa"),
+                                    gpa: personSchema.shape.gpa,
+                                })
+                                .swift({ name: "GPA" }),
+                            nothing: z.literal(null),
+                        })
+                        .optional(),
+                    someDate: z.date(),
+                })
+            )
+            .query(({ input }) => {
+                return {
+                    coolnessFactor: 10,
+                    bestProperty: {
+                        classes: {
+                            type: "classes",
+                            classes: input.classes,
+                        },
+                        gpa: {
+                            type: "gpa",
+                            gpa: input.gpa,
+                        },
+                        nothing: null,
                     },
-                    gpa: {
-                        type: "gpa",
-                        gpa: input.gpa,
-                    },
-                    nothing: null,
-                },
-                someDate: new Date(),
-            };
-        }),
+                    someDate: new Date(),
+                };
+            }),
 
-    unions: publicProcedure
-        .input(
-            z.object({
-                weird: z.union([
-                    z.string(),
-                    z.number(),
-                    z.object({
-                        name: z.string(),
-                        age: z.number(),
-                    }),
-                    z.set(z.undefined().nullable()).optional(),
-                ]),
-            })
-        )
-        .mutation(() => {
-            return;
-        }),
+        unions: publicProcedure
+            .input(
+                z.object({
+                    weird: z.union([
+                        z.string(),
+                        z.number(),
+                        z
+                            .object({
+                                name: z.string(),
+                                age: z.number(),
+                            })
+                            .swift({ name: "Bruh", global: true }),
+                    ]),
+                })
+            )
+            .query(() => {
+                return;
+            }),
+    }),
 });

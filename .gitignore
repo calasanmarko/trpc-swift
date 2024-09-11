@@ -1,6 +1,7 @@
-debug
-release
-dist
+output/
+debug/
+release/
+dist/
 
 # Logs
 logs

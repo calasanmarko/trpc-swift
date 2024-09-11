@@ -68,7 +68,7 @@ public struct TRPCError: Error, Decodable {
 
 struct TRPCResponse<T: Decodable>: Decodable {
     struct Result: Decodable {
-        let data: T
+        let data: T?
     }
     
     let result: Result?
@@ -146,8 +146,8 @@ class TRPCClient {
             throw error
         }
 
-        if let result = decoded.result {
-            return result.data
+        if let data = decoded.result?.data {
+            return data
         }
 
         if Response.self == EmptyObject.self {

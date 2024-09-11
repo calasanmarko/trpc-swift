@@ -24,11 +24,19 @@ export const indent = (str: string) => {
     return result;
 };
 
-// capitalize first letter
-export const swiftTypeName = ({ name, type }: { name: string; type: z.ZodTypeAny }) => {
+export const capitalizeFirstLetter = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
+export const swiftTypeName = ({ name, preferredName }: { name: string; preferredName?: string }) => {
     const reservedWords = new Set(["Type", "Protocol", "Class", "Enum", "Struct", "Extension", "Self"]);
-    const capitalizedGeneratedName = name.charAt(0).toUpperCase() + name.slice(1);
-    const finalName = type._def.swift?.name ?? capitalizedGeneratedName;
+    const capitalizedGeneratedName = capitalizeFirstLetter(name);
+    const finalName = preferredName ?? capitalizedGeneratedName;
 
     return reservedWords.has(finalName) ? `_${finalName}` : finalName;
+};
+
+export const swiftZodTypeName = ({ name, type }: { name: string; type: z.ZodTypeAny }) => {
+    return swiftTypeName({
+        name,
+        preferredName: type._def.swift?.name,
+    });
 };

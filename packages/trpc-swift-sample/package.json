@@ -2,6 +2,7 @@
   "name": "trpc-swift-sample",
   "module": "src/index.ts",
   "type": "module",
+  "private": true,
   "devDependencies": {
     "superjson": "^2.2.1",
     "trpc-swift": "workspace:*"

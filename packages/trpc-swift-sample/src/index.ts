@@ -2,6 +2,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 
 Bun.serve({
+    port: 3000,
     fetch: async (req) =>
         fetchRequestHandler({
             router: appRouter,
