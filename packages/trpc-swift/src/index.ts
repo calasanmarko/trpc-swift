@@ -141,8 +141,10 @@ export class TRPCSwift {
         const appendFunction = routerDepth > 0 ? "appendingPathExtension" : "appendingPathComponent";
         const emptyObjectType = `TRPCClient.EmptyObject`;
 
+        const procedureMethod = procedure._def.type === "query" ? "sendQuery" : "sendMutation";
+
         result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
-            ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.sendQuery(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
+            ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
         }\n\n`;
         return result;
     }

@@ -90,7 +90,7 @@ export const appRouter = router({
                     ]),
                 })
             )
-            .query(() => {
+            .mutation(() => {
                 return;
             }),
     }),
