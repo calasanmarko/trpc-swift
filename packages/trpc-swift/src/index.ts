@@ -1,5 +1,4 @@
 import { z } from "zod";
-// import SampleConfig from "trpc-swift-sample/trpc-swift";
 import { indent, swiftFieldName, swiftTypeName, swiftZodTypeName } from "./format";
 import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftFullConfiguration, TRPCSwiftConfiguration } from "./types";
 
@@ -432,6 +431,3 @@ export class TRPCSwift {
         return this.config.permissionScope === "public" ? "public " : "";
     }
 }
-
-// const swift = await new TRPCSwift(SampleConfig).root();
-// await Bun.write("../output/Test.swift", swift);

@@ -86,7 +86,7 @@ export const appRouter = router({
                                 name: z.string(),
                                 age: z.number(),
                             })
-                            .swift({ name: "Bruh", global: true }),
+                            .swift({ name: "Weird", global: true }),
                     ]),
                 })
             )
