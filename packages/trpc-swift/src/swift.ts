@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { indent, swiftFieldName, swiftTypeName, swiftZodTypeName } from "./format";
-import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftFullConfiguration, TRPCSwiftConfiguration } from "./types";
+import {
+    TRPCChildRouter,
+    TRPCProcedureWithInput,
+    TRPCSwiftFullConfiguration,
+    TRPCSwiftConfiguration,
+    MappedProperties,
+} from "./types";
 import { allNamedSchemas } from "./zod";
 
 export class TRPCSwift {
@@ -21,6 +27,9 @@ export class TRPCSwift {
             models: {
                 include: "all",
                 makeGlobal: "all",
+            },
+            literals: {
+                autoAssignInInitializers: false,
             },
             ...config,
         };
@@ -371,7 +380,7 @@ export class TRPCSwift {
     }) {
         let definitions = "";
         let swiftProperties = "";
-        const propertiesToTypeNames: Record<string, string> = {};
+        const mappedProperties: MappedProperties = {};
         for (const [key, value] of Object.entries(properties)) {
             try {
                 const formattedKey = swiftFieldName({ name: key });
@@ -383,7 +392,10 @@ export class TRPCSwift {
 
                     const forceOptional = isUnion && !result.name.endsWith("?");
                     swiftProperties += `${this.permissionPrefix()}var ${formattedKey}: ${result.name}${forceOptional ? "?" : ""}\n`;
-                    propertiesToTypeNames[formattedKey] = result.name;
+                    mappedProperties[formattedKey] = {
+                        typeName: result.name,
+                        schema: value,
+                    };
                 }
             } catch (e) {
                 console.error(e);
@@ -392,14 +404,14 @@ export class TRPCSwift {
 
         const { initializers, encoder, decoder } = (() => {
             if (isUnion) {
-                const initializers = Object.entries(propertiesToTypeNames).map(([property, typeName]) =>
+                const initializers = Object.entries(mappedProperties).map(([property, value]) =>
                     this.swiftInitializer({
-                        propertiesToTypeNames: { [property]: typeName },
+                        mappedProperties: { [property]: value },
                     })
                 );
 
                 const encoder = `${this.permissionPrefix()}func encode(to encoder: Encoder) throws {
-                    ${Object.keys(propertiesToTypeNames)
+                    ${Object.keys(mappedProperties)
                         .map(
                             (property) => `if let ${property} = ${property} {
                                 try ${property}.encode(to: encoder)
@@ -410,15 +422,15 @@ export class TRPCSwift {
                     }`;
 
                 const decoder = `${this.permissionPrefix()}init(from decoder: Decoder) throws {
-                    ${Object.entries(propertiesToTypeNames)
-                        .map(([property, typeName]) => `self.${property} = try? ${typeName}(from: decoder)`)
+                    ${Object.entries(mappedProperties)
+                        .map(([property, value]) => `self.${property} = try? ${value.typeName}(from: decoder)`)
                         .join("\n")}
                     }`;
 
                 return { initializers, encoder, decoder };
             }
 
-            const initializers = [this.swiftInitializer({ propertiesToTypeNames })];
+            const initializers = [this.swiftInitializer({ mappedProperties })];
             const encoder = null;
             const decoder = null;
 
@@ -450,11 +462,23 @@ export class TRPCSwift {
         return { name, definition };
     }
 
-    swiftInitializer({ propertiesToTypeNames }: { propertiesToTypeNames: Record<string, string> }) {
+    swiftInitializer({ mappedProperties }: { mappedProperties: MappedProperties }) {
         const initArguments: string[] = [];
         const content: string[] = [];
-        for (const [property, typeName] of Object.entries(propertiesToTypeNames)) {
-            initArguments.push(`${property}: ${typeName}${typeName.endsWith("?") ? " = nil" : ""}`);
+        for (const [property, value] of Object.entries(mappedProperties)) {
+            const defaultValue = (() => {
+                if (value.typeName.endsWith("?")) {
+                    return " = nil";
+                }
+                if (
+                    this.config.literals.autoAssignInInitializers &&
+                    value.schema._def.typeName === z.ZodFirstPartyTypeKind.ZodLiteral
+                ) {
+                    return ` = .${swiftFieldName({ name: (value.schema as z.ZodLiteral<never>)._def.value })}`;
+                }
+                return "";
+            })();
+            initArguments.push(`${property}: ${value.typeName}${defaultValue}`);
             content.push(`self.${property} = ${property}`);
         }
 

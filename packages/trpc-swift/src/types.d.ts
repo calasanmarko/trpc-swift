@@ -20,6 +20,9 @@ export declare type TRPCSwiftFullConfiguration = {
               include: "all";
               makeGlobal: "all";
           };
+    literals: {
+        autoAssignInInitializers: boolean;
+    };
 };
 export declare type TRPCSwiftConfiguration = Partial<TRPCSwiftFullConfiguration> &
     Pick<TRPCSwiftFullConfiguration, "router" | "outFile">;
@@ -43,3 +46,5 @@ export type TRPCProcedureWithInput = AnyTRPCProcedure & {
 export type TRPCChildRouter = Record<string, TRPCProcedureWithInput>;
 
 export type ZodPrimitiveData = { name: string; definition?: string };
+
+export type MappedProperties = Record<string, { typeName: string; schema: z.ZodType }>;
