@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { indent, swiftFieldName, swiftTypeName, swiftZodTypeName } from "./format";
 import { TRPCChildRouter, TRPCProcedureWithInput, TRPCSwiftFullConfiguration, TRPCSwiftConfiguration } from "./types";
+import { allNamedSchemas } from "./zod";
 
 export class TRPCSwift {
     globalDefinitions: string[] = [];
@@ -14,21 +15,30 @@ export class TRPCSwift {
                 structs: ["Codable", "Equatable", "Hashable"],
                 enums: ["Codable", "Equatable", "Hashable", "CaseIterable"],
             },
-            defaultInclude: {
-                procedures: "all",
+            procedures: {
+                include: "all",
             },
-            defaultGlobals: {
-                models: "named",
+            models: {
+                include: "all",
+                makeGlobal: "all",
             },
             ...config,
         };
     }
 
     async root(): Promise<string> {
+        const scope = new Set<z.ZodType>();
+
+        if (this.config.models.include === "all") {
+            for (const type of allNamedSchemas) {
+                this.zodPrimitive({ type, name: type._def.swift?.name ?? "", scope });
+            }
+        }
+
         const routerCode = this.router({
             router: this.config.router._def.procedures,
             name: "App",
-            scope: new Set(),
+            scope,
             routerDepth: 0,
         });
 
@@ -113,7 +123,7 @@ export class TRPCSwift {
         const swiftMeta = procedure._def.meta?.swift;
         if (
             swiftMeta?.include === false ||
-            (this.config.defaultInclude.procedures !== "all" && swiftMeta?.include === undefined)
+            (this.config.procedures.include !== "all" && swiftMeta?.include === undefined)
         ) {
             return "";
         }
@@ -307,7 +317,7 @@ export class TRPCSwift {
             result &&
             "definition" in result &&
             result.definition &&
-            (type._def.swift?.global || (type._def.swift?.name && this.config.defaultGlobals.models === "named"))
+            (type._def.swift?.global || (type._def.swift?.name && this.config.models.makeGlobal === "all"))
         ) {
             if (!this.globalScope.has(type)) {
                 this.globalDefinitions.push(result.definition);

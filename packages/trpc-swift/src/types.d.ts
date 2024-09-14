@@ -8,12 +8,18 @@ export declare type TRPCSwiftFullConfiguration = {
         structs: string[];
         enums: string[];
     };
-    defaultInclude: {
-        procedures: "all" | "none";
+    procedures: {
+        include: "all" | "none";
     };
-    defaultGlobals: {
-        models: "named" | "none";
-    };
+    models:
+        | {
+              include: "referenced";
+              makeGlobal: "all" | "none";
+          }
+        | {
+              include: "all";
+              makeGlobal: "all";
+          };
 };
 export declare type TRPCSwiftConfiguration = Partial<TRPCSwiftFullConfiguration> &
     Pick<TRPCSwiftFullConfiguration, "router" | "outFile">;
