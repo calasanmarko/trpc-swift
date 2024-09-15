@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { indent, swiftFieldName, swiftTypeName, swiftZodTypeName } from "./format";
-import {
+import type {
     TRPCChildRouter,
     TRPCProcedureWithInput,
     TRPCSwiftFullConfiguration,
@@ -186,7 +186,7 @@ export class TRPCSwift {
         type: z.ZodTypeAny;
         name: string;
         scope: Set<z.ZodTypeAny>;
-    }): { name: string; definition?: string } | null {
+    }): { name: string; definition?: string | undefined } | null {
         name = swiftZodTypeName({ name, type });
         const wrapped = (strings: TemplateStringsArray, ...params: z.ZodTypeAny[]) => {
             let innerType = params[0];

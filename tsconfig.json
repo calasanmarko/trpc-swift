@@ -5,12 +5,24 @@
         "moduleResolution": "Bundler",
         "rootDir": "packages/trpc-swift/src",
         "outDir": "dist",
-        "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true,
+        "allowJs": true,
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "noEmit": true,
         "skipLibCheck": true,
         "strict": true,
-        "sourceMap": true,
-        "incremental": true,
-        "declaration": true
+
+        "noFallthroughCasesInSwitch": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowUnusedLabels": false,
+        "allowUnreachableCode": false,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true
     },
     "include": ["packages/trpc-swift/src/**/*.ts"]
 }

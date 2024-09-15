@@ -3,6 +3,9 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
   "workspaces": [
     "packages/*"
   ],

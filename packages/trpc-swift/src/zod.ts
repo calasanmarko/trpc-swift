@@ -1,4 +1,4 @@
-import { ZodTypeAny, z } from "zod";
+import type { ZodTypeAny, z } from "zod";
 
 type ZodSwiftMetadata = {
     name?: string;
