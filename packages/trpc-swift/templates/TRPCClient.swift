@@ -79,8 +79,64 @@ struct TRPCResponse<T: Decodable>: Decodable {
 }
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
-
 class TRPCClient {
+    class SSEClient<TOutput: Decodable>: NSObject, URLSessionDataDelegate {
+        private var urlSession: URLSession!
+        private var task: URLSessionDataTask?
+        
+        let onMessage: (TOutput) throws -> Void
+        let onClose: (Error?) -> Void
+        
+        init(url: URL, onMessage: @escaping (TOutput) throws -> Void, onClose: @escaping (Error?) -> Void) {
+            self.onMessage = onMessage
+            self.onClose = onClose
+            
+            super.init()
+            let config = URLSessionConfiguration.default
+            urlSession = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue())
+            task = urlSession.dataTask(with: url)
+        }
+        
+        func start() {
+            task?.resume()
+        }
+        
+        func stop() {
+            task?.cancel()
+        }
+        
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            guard let eventString = String(data: data, encoding: .utf8) else {
+                return
+            }
+            
+            let eventLines = eventString.components(separatedBy: "\n")
+            let dataPrefix = "data: "
+
+            for line in eventLines {
+                if eventString.hasPrefix(dataPrefix) {
+                    let dataJsonString = String(line[line.index(line.startIndex, offsetBy: dataPrefix.count)...])
+                    let response = try! JSONDecoder().decode(TOutput.self, from: dataJsonString.data(using: .utf8)!)
+                    do {
+                        try self.onMessage(response)
+                    } catch {
+                        self.onClose(error)
+                    }
+
+                    break
+                }
+            }
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            if let error = error, (error as NSError).code != NSURLErrorCancelled {
+                self.onClose(error)
+            } else {
+                self.onClose(nil)
+            }
+        }
+    }
+
     struct EmptyObject: Codable { }
     
     static var dateFormatter: DateFormatter = {
@@ -93,6 +149,74 @@ class TRPCClient {
     }()
     
     static func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+        let urlWithParams = try createURLWithParameters(url: url, input: input)
+        return try await send(url: urlWithParams, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
+    }
+    
+    static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .formatted(dateFormatter)
+        let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
+        
+        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
+    }
+    
+    static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, onMessage: @escaping (Response) throws -> Void) async throws {
+        let urlWithParams = try createURLWithParameters(url: url, input: input)
+        
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let client = SSEClient(url: urlWithParams) { response in
+                try onMessage(response)
+            } onClose: { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+            client.start()
+        }
+    }
+    
+    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Response {
+        var request = URLRequest(url: url)
+        request.httpMethod = httpMethod
+        request.httpBody = bodyData
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        for middleware in middlewares {
+            request = try await middleware(request)
+        }
+        
+        request.httpMethod = httpMethod
+        request.httpBody = bodyData
+        
+        let response = try await URLSession.shared.data(for: request)
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .formatted(dateFormatter)
+        let decoded = try decoder.decode(TRPCResponse<Response>.self, from: response.0)
+        
+        if let error = decoded.error {
+            throw error
+        }
+        
+        if let data = decoded.result?.data {
+            return data
+        }
+        
+        if Response.self == EmptyObject.self {
+            guard let emptyResult = EmptyObject() as? Response else {
+                throw TRPCError(code: .missingOutputPayload, message: "Cannot cast empty object to \(Response.self).", data: nil)
+            }
+            
+            return emptyResult
+        }
+        
+        throw TRPCError(code: .missingOutputPayload, message: "Missing output payload.", data: nil)
+    }
+    
+    private static func createURLWithParameters<Request: Encodable>(url: URL, input: Request) throws -> URL {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw TRPCError(code: .errorParsingUrl, message: "Could not create URLComponents from the given url: \(url)")
         }
@@ -102,7 +226,7 @@ class TRPCClient {
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
         
         components.queryItems = [
-            URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
+        URLQueryItem(name: "input", value: String(data: data, encoding: .utf8)!)
         ]
         
         let characterSet = CharacterSet(charactersIn: "/+").inverted
@@ -115,52 +239,6 @@ class TRPCClient {
             throw TRPCError(code: .errorParsingUrlComponents, message: "Could not generate final URL after including parameters.")
         }
         
-        return try await send(url: url, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
-    }
-
-    static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .formatted(dateFormatter)
-        let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
-
-        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
-    }
-
-    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Response {
-        var request = URLRequest(url: url)
-        request.httpMethod = httpMethod
-        request.httpBody = bodyData
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        for middleware in middlewares {
-            request = try await middleware(request)
-        }
-
-        request.httpMethod = httpMethod
-        request.httpBody = bodyData
-
-        let response = try await URLSession.shared.data(for: request)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(dateFormatter)
-        let decoded = try decoder.decode(TRPCResponse<Response>.self, from: response.0)
-
-        if let error = decoded.error {
-            throw error
-        }
-
-        if let data = decoded.result?.data {
-            return data
-        }
-
-        if Response.self == EmptyObject.self {
-            guard let emptyResult = EmptyObject() as? Response else {
-                throw TRPCError(code: .missingOutputPayload, message: "Cannot cast empty object to \(Response.self).", data: nil)
-            }
-
-            return emptyResult
-        }
-
-        throw TRPCError(code: .missingOutputPayload, message: "Missing output payload.", data: nil)
+        return url
     }
 }

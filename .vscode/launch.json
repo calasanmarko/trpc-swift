@@ -20,7 +20,7 @@
             "request": "launch",
             "name": "Run sample tRPC Server",
             "program": "index.ts",
-            "cwd": "${workspaceFolder}/packages/trpc-swift-sample/src",
+            "cwd": "${workspaceFolder}/packages/sample/src",
             "stopOnEntry": false,
             "watchMode": true
         }

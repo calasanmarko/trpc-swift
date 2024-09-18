@@ -10,6 +10,7 @@ export declare type TRPCSwiftFullConfiguration = {
     };
     procedures: {
         include: "all" | "none";
+        subscriptionMode: "none" | "sse";
     };
     models:
         | {
@@ -31,6 +32,7 @@ export type TRPCSwiftMeta = {
     swift?: {
         include?: boolean;
         description?: string;
+        subscriptionOutput?: z.ZodType;
     };
 };
 

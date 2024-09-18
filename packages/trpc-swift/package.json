@@ -1,11 +1,10 @@
 {
   "name": "trpc-swift",
+  "version": "1.0.0-beta.2",
   "main": "src/index.ts",
   "module": "src/index.ts",
-  "types": "src/types.d.ts",
-  "version": "1.0.0-beta.1",
-  "scripts": {
-    "check": "tsc --noEmit"
+  "devDependencies": {
+    "trpc-swift-sample": "workspace:*"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -13,8 +12,9 @@
   "bin": {
     "trpc-swift": "src/cli.ts"
   },
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
   "type": "module",
-  "devDependencies": {
-    "trpc-swift-sample": "workspace:*"
-  }
+  "types": "src/types.d.ts"
 }

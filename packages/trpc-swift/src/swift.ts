@@ -23,6 +23,7 @@ export class TRPCSwift {
             },
             procedures: {
                 include: "all",
+                subscriptionMode: "sse",
             },
             models: {
                 include: "all",
@@ -129,6 +130,10 @@ export class TRPCSwift {
         scope: Set<z.ZodTypeAny>;
         routerDepth: number;
     }): string {
+        if (procedure._def.type === "subscription" && this.config.procedures.subscriptionMode === "none") {
+            return "";
+        }
+
         const swiftMeta = procedure._def.meta?.swift;
         if (
             swiftMeta?.include === false ||
@@ -138,7 +143,16 @@ export class TRPCSwift {
         }
 
         const input = procedure._def.inputs.at(0) as z.ZodTypeAny;
-        const output = procedure._def.output as z.ZodTypeAny;
+        const output =
+            procedure._def.type === "subscription"
+                ? procedure._def.meta?.swift?.subscriptionOutput
+                : (procedure._def.output as z.ZodTypeAny);
+
+        if (procedure._def.type === "subscription" && !output) {
+            throw new Error(
+                `Missing subscription output for ${name}. Please insert swift.subscriptionOutput into the procedure meta.`
+            );
+        }
 
         let inputType = "";
         let outputType = "";
@@ -166,15 +180,22 @@ export class TRPCSwift {
         const appendFunction = routerDepth > 0 ? "appendingPathExtension" : "appendingPathComponent";
         const emptyObjectType = `TRPCClient.EmptyObject`;
 
-        const procedureMethod = procedure._def.type === "query" ? "sendQuery" : "sendMutation";
-
         if (swiftMeta?.description) {
             result += `/// ${swiftMeta.description}\n`;
         }
 
-        result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
-            ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
-        }\n\n`;
+        if (procedure._def.type === "subscription") {
+            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}onMessage: @escaping (${outputType ? outputType : emptyObjectType}) throws -> Void) async throws -> Void {
+                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`}, onMessage: onMessage)
+            }`;
+        } else if (procedure._def.type === "query" || procedure._def.type === "mutation") {
+            const procedureMethod = procedure._def.type === "query" ? "sendQuery" : "sendMutation";
+            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
+                ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
+            }`;
+        }
+
+        result += "\n\n";
         return result;
     }
 

@@ -1,7 +1,8 @@
-import { initTRPC } from "@trpc/server";
+import { initTRPC, tracked } from "@trpc/server";
 import { extendZodWithSwift } from "trpc-swift";
 import { z } from "zod";
 import { TRPCSwiftMeta } from "../../trpc-swift/src/types";
+import { observable } from "@trpc/server/observable";
 
 const t = initTRPC.meta<TRPCSwiftMeta>().create({});
 const router = t.router;
@@ -26,7 +27,6 @@ export const personSchema = z
         favoriteColors: z.array(z.enum(["red", "green", "blue"]).optional()).nullish(),
         dateCreated: z.coerce.date(),
     })
-    .swift({ name: "ManualNamePerson", description: "A person" })
     .strict();
 
 export const appRouter = router({
@@ -36,6 +36,32 @@ export const appRouter = router({
         .output(z.number().int())
         .query(({ input }) => input.length),
 
+    testListener: publicProcedure
+        .meta({
+            swift: {
+                subscriptionOutput: z.object({
+                    index: z.number(),
+                    value: z.string(),
+                }),
+            },
+        })
+        .input(z.string())
+        .subscription(({ input }) =>
+            observable(({ next, complete }) => {
+                const trackingId = crypto.randomUUID();
+                let index = 0;
+
+                const interval = setInterval(() => {
+                    const value = { index: index++, value: input };
+                    next(tracked(trackingId, value));
+                    if (index > 10) {
+                        complete();
+                    }
+                }, 500);
+
+                return () => clearInterval(interval);
+            })
+        ),
     childRouter: router({
         people: publicProcedure
             .input(personSchema)
@@ -89,7 +115,7 @@ export const appRouter = router({
                                 name: z.string(),
                                 age: z.number(),
                             })
-                            .swift({ name: "Weird", global: true }),
+                            .swift({ name: "Weirder", global: true }),
                     ]),
                 })
             )
