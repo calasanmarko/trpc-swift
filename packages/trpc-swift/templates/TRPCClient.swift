@@ -79,22 +79,24 @@ struct TRPCResponse<T: Decodable>: Decodable {
 }
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
+
 class TRPCClient {
     class SSEClient<TOutput: Decodable>: NSObject, URLSessionDataDelegate {
-        private var urlSession: URLSession!
         private var task: URLSessionDataTask?
         
         let onMessage: (TOutput) throws -> Void
         let onClose: (Error?) -> Void
+
+        var didCrash = false
         
-        init(url: URL, onMessage: @escaping (TOutput) throws -> Void, onClose: @escaping (Error?) -> Void) {
+        init(request: URLRequest, onMessage: @escaping (TOutput) throws -> Void, onClose: @escaping (Error?) -> Void) {
             self.onMessage = onMessage
             self.onClose = onClose
-            
+
             super.init()
             let config = URLSessionConfiguration.default
-            urlSession = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue())
-            task = urlSession.dataTask(with: url)
+            let session = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue())
+            self.task = session.dataTask(with: request)
         }
         
         func start() {
@@ -106,21 +108,32 @@ class TRPCClient {
         }
         
         func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(dateFormatter)
+
             guard let eventString = String(data: data, encoding: .utf8) else {
                 return
             }
             
             let eventLines = eventString.components(separatedBy: "\n")
             let dataPrefix = "data: "
+            let isErrorEvent = eventLines.contains("event: serialized-error")
 
             for line in eventLines {
-                if eventString.hasPrefix(dataPrefix) {
+                if line.hasPrefix(dataPrefix) {
                     let dataJsonString = String(line[line.index(line.startIndex, offsetBy: dataPrefix.count)...])
-                    let response = try! JSONDecoder().decode(TOutput.self, from: dataJsonString.data(using: .utf8)!)
                     do {
-                        try self.onMessage(response)
+                        if isErrorEvent {
+                            let error = try decoder.decode(TRPCError.self, from: dataJsonString.data(using: .utf8)!)
+                            throw error
+                        } else {
+                            let response = try decoder.decode(TOutput.self, from: dataJsonString.data(using: .utf8)!)
+                            try self.onMessage(response)
+                        }
                     } catch {
+                        self.didCrash = true
                         self.onClose(error)
+                        self.task?.cancel()
                     }
 
                     break
@@ -129,6 +142,10 @@ class TRPCClient {
         }
 
         func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            guard !didCrash else {
+                return
+            }
+            
             if let error = error, (error as NSError).code != NSURLErrorCancelled {
                 self.onClose(error)
             } else {
@@ -163,9 +180,14 @@ class TRPCClient {
     
     static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, onMessage: @escaping (Response) throws -> Void) async throws {
         let urlWithParams = try createURLWithParameters(url: url, input: input)
-        
+
+        var request = URLRequest(url: urlWithParams)
+        for middleware in middlewares {
+            request = try await middleware(request)
+        }
+
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let client = SSEClient(url: urlWithParams) { response in
+            let client = SSEClient(request: request) { response in
                 try onMessage(response)
             } onClose: { error in
                 if let error = error {
