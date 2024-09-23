@@ -1,6 +1,7 @@
 import { initTRPC, tracked } from "@trpc/server";
 import { extendZodWithSwift } from "trpc-swift";
 import { z } from "zod";
+import { zfd } from "zod-form-data";
 import { TRPCSwiftMeta } from "../../trpc-swift/src/types";
 import { observable } from "@trpc/server/observable";
 
@@ -22,14 +23,41 @@ export const personSchema = z
             })
             .array()
             .swift({
-                name: "Person",
+                name: "Class",
             }),
         favoriteColors: z.array(z.enum(["red", "green", "blue"]).optional()).nullish(),
         dateCreated: z.coerce.date(),
     })
     .strict();
 
+export const multipartSchema = zfd
+    .formData({
+        person: zfd.json(personSchema),
+        file1: zfd.file().swift({ experimentalMultipartType: "file" }),
+        file2: zfd.file().nullish().swift({ experimentalMultipartType: "file" }),
+    })
+    .swift({
+        name: "Multipart",
+        experimentalMultipartType: "formData",
+    });
+
 export const appRouter = router({
+    multipartUpload: publicProcedure
+        .input(multipartSchema)
+        .output(
+            z.object({
+                file1Bytes: z.number().int(),
+                file2Bytes: z.number().int().nullish(),
+            })
+        )
+        .mutation(({ input }) => {
+            console.log({ input });
+            return {
+                file1Bytes: input.file1.size,
+                file2Bytes: input.file2?.size ?? null,
+            };
+        }),
+
     stringLength: publicProcedure
         .meta({ swift: { description: "Get the length of a string" } })
         .input(z.string())

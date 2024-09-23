@@ -78,6 +78,16 @@ struct TRPCResponse<T: Decodable>: Decodable {
     let error: TRPCError?
 }
 
+public struct TRPCSwiftFile: Equatable, Hashable {
+    let filename: String
+    let content: Data
+}
+
+protocol TRPCSwiftMultipartParsable {
+    var jsonFields: [String: Encodable?] { get }
+    var fileFields: [String: TRPCSwiftFile?] { get }
+}
+
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
 class TRPCClient {
@@ -167,7 +177,7 @@ class TRPCClient {
     
     static func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
         let urlWithParams = try createURLWithParameters(url: url, input: input)
-        return try await send(url: urlWithParams, httpMethod: "GET", middlewares: middlewares, bodyData: nil)
+        return try await send(url: urlWithParams, httpMethod: "GET", middlewares: middlewares, contentType: "application/json", bodyData: nil)
     }
     
     static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
@@ -175,7 +185,13 @@ class TRPCClient {
         encoder.dateEncodingStrategy = .formatted(dateFormatter)
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
         
-        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, bodyData: data)
+        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "application/json", bodyData: data)
+    }
+
+    static func sendMultipartMutation<Request: TRPCSwiftMultipartParsable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+        let boundary = "TRPCSwiftMultipart-\(UUID().uuidString)"
+        let data = try createMultipartData(input: input, boundary: boundary)
+        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "multipart/form-data; boundary=\(boundary)", bodyData: data)
     }
     
     static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, onMessage: @escaping (Response) throws -> Void) async throws {
@@ -199,12 +215,45 @@ class TRPCClient {
             client.start()
         }
     }
+
+    static func createMultipartData(input: TRPCSwiftMultipartParsable, boundary: String) throws -> Data {
+        var body = Data()
+        
+        for (key, value) in input.jsonFields {
+            guard let value = value else {
+                continue
+            }
+
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: application/json\r\n\r\n".data(using: .utf8)!)
+            body.append(try JSONEncoder().encode(value))
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        for (key, file) in input.fileFields {
+            guard let file = file else {
+                continue
+            }
+            
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            body.append(file.content)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        print(String(data: body, encoding: .utf8)!)
+        return body
+    }
     
-    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], bodyData: Data?) async throws -> Response {
+    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], contentType: String, bodyData: Data?) async throws -> Response {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.httpBody = bodyData
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(contentType, forHTTPHeaderField: "Content-Type")
         
         for middleware in middlewares {
             request = try await middleware(request)

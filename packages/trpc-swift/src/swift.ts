@@ -7,7 +7,7 @@ import type {
     TRPCSwiftConfiguration,
     MappedProperties,
 } from "./types";
-import { allNamedSchemas } from "./zod";
+import { allNamedSchemas, type ZodSwiftMetadata } from "./zod";
 
 export class TRPCSwift {
     globalDefinitions: string[] = [];
@@ -179,6 +179,7 @@ export class TRPCSwift {
 
         const appendFunction = routerDepth > 0 ? "appendingPathExtension" : "appendingPathComponent";
         const emptyObjectType = `TRPCClient.EmptyObject`;
+        const inputData = input ? "input" : `${emptyObjectType}()`;
 
         if (swiftMeta?.description) {
             result += `/// ${swiftMeta.description}\n`;
@@ -186,12 +187,25 @@ export class TRPCSwift {
 
         if (procedure._def.type === "subscription") {
             result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}onMessage: @escaping (${outputType ? outputType : emptyObjectType}) throws -> Void) async throws -> Void {
-                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`}, onMessage: onMessage)
+                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData}, onMessage: onMessage)
             }`;
         } else if (procedure._def.type === "query" || procedure._def.type === "mutation") {
-            const procedureMethod = procedure._def.type === "query" ? "sendQuery" : "sendMutation";
+            const procedureMethod = (() => {
+                if (procedure._def.type === "query") {
+                    return "sendQuery";
+                }
+
+                if (procedure._def.type === "mutation") {
+                    if (input._def.swift?.experimentalMultipartType === "formData") {
+                        return "sendMultipartMutation";
+                    }
+                    return "sendMutation";
+                }
+
+                throw new Error(`Unsupported procedure type: ${procedure._def.type}`);
+            })();
             result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
-                ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputType ? "input" : `${emptyObjectType}()`})
+                ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData})
             }`;
         }
 
@@ -203,12 +217,19 @@ export class TRPCSwift {
         type,
         name,
         scope,
+        experimentalMultipartType,
     }: {
         type: z.ZodTypeAny;
         name: string;
         scope: Set<z.ZodTypeAny>;
-    }): { name: string; definition?: string | undefined } | null {
+        experimentalMultipartType?: ZodSwiftMetadata["experimentalMultipartType"] | undefined;
+    }): {
+        name: string;
+        definition?: string | undefined;
+        experimentalMultipartType?: ZodSwiftMetadata["experimentalMultipartType"] | undefined;
+    } | null {
         name = swiftZodTypeName({ name, type });
+        experimentalMultipartType = experimentalMultipartType ?? type._def.swift?.experimentalMultipartType;
         const wrapped = (strings: TemplateStringsArray, ...params: z.ZodTypeAny[]) => {
             let innerType = params[0];
             if (
@@ -227,6 +248,7 @@ export class TRPCSwift {
                 type: innerType,
                 name,
                 scope,
+                experimentalMultipartType,
             });
 
             if (innerResult === null) {
@@ -241,6 +263,11 @@ export class TRPCSwift {
 
         const result = (() => {
             switch (type._def.typeName) {
+                case z.ZodFirstPartyTypeKind.ZodAny:
+                    if (experimentalMultipartType === "file") {
+                        return { name: "TRPCSwiftFile" };
+                    }
+                    return { name: "Any" };
                 case z.ZodFirstPartyTypeKind.ZodString:
                     return { name: "String" };
                 case z.ZodFirstPartyTypeKind.ZodNumber:
@@ -281,8 +308,6 @@ export class TRPCSwift {
                     return wrapped`${(type as z.ZodPromise<never>)._def.type}`;
                 case z.ZodFirstPartyTypeKind.ZodPipeline:
                     return wrapped`${(type as z.ZodPipeline<z.ZodNever, never>)._def.in}`;
-                case z.ZodFirstPartyTypeKind.ZodAny:
-                    return { name: "Any" };
                 case z.ZodFirstPartyTypeKind.ZodUnknown:
                     return { name: "Any" };
                 case z.ZodFirstPartyTypeKind.ZodNaN:
@@ -306,6 +331,7 @@ export class TRPCSwift {
                         name,
                         description: (type as z.ZodObject<Record<string, z.ZodTypeAny>>)._def.swift?.description,
                         scope: new Set(scope),
+                        isFormData: experimentalMultipartType === "formData",
                     });
                 case z.ZodFirstPartyTypeKind.ZodEnum:
                     if (scope.has(type)) {
@@ -392,13 +418,19 @@ export class TRPCSwift {
         description,
         scope,
         isUnion,
+        isFormData,
     }: {
         properties: Record<string, z.ZodTypeAny>;
         name: string;
         description: string | undefined;
         scope: Set<z.ZodTypeAny>;
         isUnion?: boolean;
+        isFormData?: boolean;
     }) {
+        if (isUnion && isFormData) {
+            throw new Error(`Error parsing type ${name}: A type cannot be both a union and a form data type.`);
+        }
+
         let definitions = "";
         let swiftProperties = "";
         const mappedProperties: MappedProperties = {};
@@ -463,7 +495,21 @@ export class TRPCSwift {
             definition += `/// ${description}\n`;
         }
 
-        definition += `${this.permissionPrefix()}struct ${name}: ${this.config.conformance.structs.join(", ")} {\n`;
+        let conformance = [...this.config.conformance.structs];
+        if (isFormData) {
+            conformance = conformance.filter((c) => c !== "Codable");
+            conformance.push("TRPCSwiftMultipartParsable");
+        }
+
+        const jsonFields = Object.entries(mappedProperties)
+            .filter(([_, { schema }]) => !schema._def.swift?.experimentalMultipartType)
+            .map(([property, _]) => `"${property}": ${property}`);
+
+        const fileFields = Object.entries(mappedProperties)
+            .filter(([_, { schema }]) => schema._def.swift?.experimentalMultipartType === "file")
+            .map(([property, _]) => `"${property}": ${property}`);
+
+        definition += `${this.permissionPrefix()}struct ${name}: ${conformance.join(", ")} {\n`;
         if (definitions) {
             definition += `${definitions}\n`;
         }
@@ -477,6 +523,14 @@ export class TRPCSwift {
         }
         if (encoder) {
             definition += `\n${encoder}\n`;
+        }
+        if (isFormData) {
+            definition += `\nvar jsonFields: [String: Encodable?] {
+                [${jsonFields.join(", ")}]
+            }\n`;
+            definition += `\nvar fileFields: [String: TRPCSwiftFile?] {
+                [${fileFields.join(", ")}]
+            }\n`;
         }
         definition += "}";
 

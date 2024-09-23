@@ -3,6 +3,7 @@ import { appRouter } from "./router";
 import express from "express";
 
 const app = express();
+
 app.use(
     "/trpc",
     createExpressMiddleware({
@@ -16,6 +17,5 @@ app.use(
         },
     })
 );
-
 app.listen(3000);
 console.log("Listening on http://localhost:3000/trpc");

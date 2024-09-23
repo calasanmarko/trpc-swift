@@ -1,9 +1,10 @@
 import type { ZodTypeAny, z } from "zod";
 
-type ZodSwiftMetadata = {
+export type ZodSwiftMetadata = {
     name?: string;
     description?: string;
     global?: boolean;
+    experimentalMultipartType?: "file" | "formData";
 };
 
 declare module "zod" {
@@ -24,6 +25,7 @@ export const extendZodWithSwift = (zod: typeof z) => {
             name: metadata.name ?? this._def.swift?.name,
             description: metadata.description ?? this._def.swift?.description,
             global: metadata.global ?? this._def.swift?.global,
+            experimentalMultipartType: metadata.experimentalMultipartType ?? this._def.swift?.experimentalMultipartType,
         };
 
         if (this._def.swift?.name) {
