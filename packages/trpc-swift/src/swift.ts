@@ -142,11 +142,11 @@ export class TRPCSwift {
             return "";
         }
 
-        const input = procedure._def.inputs.at(0) as z.ZodTypeAny;
+        const input = procedure._def.inputs.at(0) as z.ZodTypeAny | undefined;
         const output =
             procedure._def.type === "subscription"
                 ? procedure._def.meta?.swift?.subscriptionOutput
-                : (procedure._def.output as z.ZodTypeAny);
+                : (procedure._def.output as z.ZodTypeAny | undefined);
 
         if (procedure._def.type === "subscription" && !output) {
             throw new Error(
@@ -196,7 +196,7 @@ export class TRPCSwift {
                 }
 
                 if (procedure._def.type === "mutation") {
-                    if (input._def.swift?.experimentalMultipartType === "formData") {
+                    if (input?._def.swift?.experimentalMultipartType === "formData") {
                         return "sendMultipartMutation";
                     }
                     return "sendMutation";
