@@ -256,7 +256,6 @@ class TRPCClient {
         
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         
-        print(String(data: body, encoding: .utf8)!)
         return body
     }
     
