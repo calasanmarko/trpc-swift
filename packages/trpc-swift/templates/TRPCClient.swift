@@ -81,6 +81,17 @@ struct TRPCResponse<T: Decodable>: Decodable {
 public struct TRPCSwiftFile: Equatable, Hashable {
     let filename: String
     let content: Data
+
+    public init(filename: String, content: Data) {
+        self.filename = filename
+        self.content = content
+    }
+    
+    public init(fileExtension: String, content: Data) {
+        let processedExtension = fileExtension.hasPrefix(".") ? fileExtension : ".\(fileExtension)"
+        self.filename = "\(UUID().uuidString)\(processedExtension)"
+        self.content = content
+    }
 }
 
 protocol TRPCSwiftMultipartParsable {
