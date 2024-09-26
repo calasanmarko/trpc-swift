@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "devDependencies": {
-    "@trpc/server": "^11.0.0-rc.502",
+    "@trpc/server": "^11.0.0-rc.532",
     "@types/bun": "latest",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",

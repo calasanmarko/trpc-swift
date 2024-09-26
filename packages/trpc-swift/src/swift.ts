@@ -202,7 +202,7 @@ export class TRPCSwift {
                     return "sendMutation";
                 }
 
-                throw new Error(`Unsupported procedure type: ${procedure._def.type}`);
+                throw new Error(`Unsupported procedure type: ${(procedure._def as { type: string }).type}`);
             })();
             result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
                 ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData})
