@@ -186,8 +186,8 @@ export class TRPCSwift {
         }
 
         if (procedure._def.type === "subscription") {
-            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}onMessage: @escaping (${outputType ? outputType : emptyObjectType}) throws -> Void) async throws -> Void {
-                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData}, onMessage: onMessage)
+            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}idleTimeout: TimeInterval = .infinity, onMessage: @escaping (${outputType ? outputType : emptyObjectType}) throws -> Void) async throws -> Void {
+                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData}, idleTimeout: idleTimeout, onMessage: onMessage)
             }`;
         } else if (procedure._def.type === "query" || procedure._def.type === "mutation") {
             const procedureMethod = (() => {

@@ -205,10 +205,11 @@ class TRPCClient {
         return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "multipart/form-data; boundary=\(boundary)", bodyData: data)
     }
     
-    static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, onMessage: @escaping (Response) throws -> Void) async throws {
+    static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, idleTimeout: TimeInterval, onMessage: @escaping (Response) throws -> Void) async throws {
         let urlWithParams = try createURLWithParameters(url: url, input: input)
 
         var request = URLRequest(url: urlWithParams)
+        request.timeoutInterval = idleTimeout
         for middleware in middlewares {
             request = try await middleware(request)
         }
