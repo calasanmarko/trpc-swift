@@ -81,16 +81,12 @@ struct TRPCResponse<T: Decodable>: Decodable {
 public struct TRPCSwiftFile: Equatable, Hashable {
     let filename: String
     let content: Data
+    let mimeType: String
 
-    public init(filename: String, content: Data) {
+    public init(mimeType: String, content: Data, filename: String = UUID().uuidString) {
+        self.mimeType = mimeType
+        self.content = content
         self.filename = filename
-        self.content = content
-    }
-    
-    public init(fileExtension: String, content: Data) {
-        let processedExtension = fileExtension.hasPrefix(".") ? fileExtension : ".\(fileExtension)"
-        self.filename = "\(UUID().uuidString)\(processedExtension)"
-        self.content = content
     }
 }
 
@@ -250,7 +246,7 @@ class TRPCClient {
             
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
             body.append(file.content)
             body.append("\r\n".data(using: .utf8)!)
         }
