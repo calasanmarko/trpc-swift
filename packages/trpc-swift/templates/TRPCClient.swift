@@ -55,6 +55,7 @@ public enum TRPCErrorCode: Int, Codable {
     case missingOutputPayload = -2
     case errorParsingUrl = -3
     case errorParsingUrlComponents = -4
+    case unicodeDecodingError = -5
 }
 
 public struct TRPCError: Error, Decodable {
@@ -66,6 +67,14 @@ public struct TRPCError: Error, Decodable {
         self.code = code
         self.message = message
         self.data = data
+    }
+}
+
+struct TRPCBatchRequest<T: Encodable>: Encodable {
+    let zero: T
+
+    enum CodingKeys: String, CodingKey {
+        case zero = "0"
     }
 }
 
@@ -97,17 +106,41 @@ protocol TRPCSwiftMultipartParsable {
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
 
-class TRPCClient {
-    class SSEClient<TOutput: Decodable>: NSObject, URLSessionDataDelegate {
-        private var task: URLSessionDataTask?
-        
-        let onMessage: (TOutput) throws -> Void
-        let onClose: (Error?) -> Void
+enum TRPCProcedureType {
+    case query
+    case mutation
+    case subscription
 
-        var didCrash = false
+    var isBatchingStream: Bool {
+        self == .query || self == .mutation
+    }
+}
+
+class TRPCClient {
+    static var encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .formatted(dateFormatter)
+        return encoder
+    }()
+
+    static var decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .formatted(dateFormatter)
+        return decoder
+    }()
+
+    class SSEClient<TYield: Decodable, TReturn: Decodable>: NSObject, URLSessionDataDelegate {
         
-        init(request: URLRequest, onMessage: @escaping (TOutput) throws -> Void, onClose: @escaping (Error?) -> Void) {
+        let procedureType: TRPCProcedureType
+        let onMessage: (TYield) throws -> Void
+        let onClose: (Result<TReturn, Error>) -> Void
+
+        private var task: URLSessionDataTask?
+        private var didClose = false
+        
+        init(request: URLRequest, procedureType: TRPCProcedureType, onMessage: @escaping (TYield) throws -> Void, onClose: @escaping (Result<TReturn, Error>) -> Void) {
             self.onMessage = onMessage
+            self.procedureType = procedureType
             self.onClose = onClose
 
             super.init()
@@ -123,34 +156,39 @@ class TRPCClient {
         func stop() {
             task?.cancel()
         }
-        
-        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .formatted(dateFormatter)
 
-            guard let eventString = String(data: data, encoding: .utf8) else {
-                return
-            }
-            
-            let eventLines = eventString.components(separatedBy: "\n")
+        private func stop(result: Result<TReturn, Error>) {
+            self.didClose = true
+            self.onClose(result)
+            task?.cancel()
+        }
+
+        func parseSubscriptionEventLines(eventLines: [String]) {
             let dataPrefix = "data: "
             let isErrorEvent = eventLines.contains("event: serialized-error")
 
             for line in eventLines {
                 if line.hasPrefix(dataPrefix) {
-                    let dataJsonString = String(line[line.index(line.startIndex, offsetBy: dataPrefix.count)...])
+                    let jsonString = String(line[line.index(line.startIndex, offsetBy: dataPrefix.count)...])
                     do {
+                        guard let jsonData = jsonString.data(using: .utf8) else {
+                            throw TRPCError(code: .unicodeDecodingError)
+                        }
+
                         if isErrorEvent {
-                            let error = try decoder.decode(TRPCError.self, from: dataJsonString.data(using: .utf8)!)
+                            let error = try decoder.decode(TRPCError.self, from: jsonData)
                             throw error
                         } else {
-                            let response = try decoder.decode(TOutput.self, from: dataJsonString.data(using: .utf8)!)
-                            try self.onMessage(response)
+                            do {
+                                let response = try decoder.decode(TYield.self, from: jsonData)
+                                try self.onMessage(response)
+                            } catch {
+                                let response = try decoder.decode(TReturn.self, from: jsonData)
+                                self.stop(result: .success(response))
+                            }
                         }
                     } catch {
-                        self.didCrash = true
-                        self.onClose(error)
-                        self.task?.cancel()
+                        self.stop(result: .failure(error))
                     }
 
                     break
@@ -158,15 +196,95 @@ class TRPCClient {
             }
         }
 
-        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-            guard !didCrash else {
+        func parseBatchEventLines(eventLines: [String]) {
+            let returnCode = 0
+            let yieldCode = 1
+            let errorCode = 2
+
+            let prefixRegex = try! NSRegularExpression(pattern: "\\[3,[0-2],")
+            
+            for line in eventLines {
+                if prefixRegex.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)) != nil {
+                    let codeIndex = line.index(line.startIndex, offsetBy: 3)
+                    
+                    guard let code = Int(line[codeIndex...codeIndex]) else {
+                        continue
+                    }
+
+                    let dataStartIndex = line.index(codeIndex, offsetBy: 1)
+                    let firstDataCharacterIndex = line.index(after: dataStartIndex)
+                    let firstDataCharacter = line[firstDataCharacterIndex]
+
+                    let (jsonStartIndex, jsonEndIndex): (String.Index?, String.Index?) = {
+                        if firstDataCharacter == "[" {
+                            return (line.index(firstDataCharacterIndex, offsetBy: 2), line.index(line.endIndex, offsetBy: -4))
+                        } else if firstDataCharacter == "{" {
+                            return (firstDataCharacterIndex, line.lastIndex(of: "}"))
+                        }
+                        return (nil, nil)
+                    }()
+                    
+                    guard let jsonStartIndex = jsonStartIndex, let jsonEndIndex = jsonEndIndex else {
+                        continue
+                    }
+
+                    guard jsonStartIndex < jsonEndIndex else {
+                        continue
+                    }
+
+                    let jsonString = String(line[jsonStartIndex...jsonEndIndex])
+
+                    guard let jsonData = jsonString.data(using: .utf8) else {
+                        continue
+                    }
+
+                    do {
+                        switch code {
+                        case returnCode:
+                            let response = try decoder.decode(TReturn.self, from: jsonData)
+                            self.stop(result: .success(response))
+                        case yieldCode:
+                            let response = try decoder.decode(TYield.self, from: jsonData)
+                            try self.onMessage(response)
+                        case errorCode:
+                            let error = try decoder.decode(TRPCError.self, from: jsonData)
+                            throw error
+                        default:
+                            throw TRPCError(code: .unknown, message: "Unknown code \(code) in batch response.")
+                        }
+                    } catch {
+                        self.stop(result: .failure(error))
+                    }
+
+                    break
+                }
+            }
+        }
+        
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            guard let eventString = String(data: data, encoding: .utf8) else {
                 return
             }
             
-            if let error = error, (error as NSError).code != NSURLErrorCancelled {
-                self.onClose(error)
+            let eventLines = eventString.components(separatedBy: "\n")
+
+            if procedureType.isBatchingStream {
+                parseBatchEventLines(eventLines: eventLines)
             } else {
-                self.onClose(nil)
+                parseSubscriptionEventLines(eventLines: eventLines)
+            }
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            guard !didClose else {
+                return
+            }
+            didClose = true
+            
+            if let error = error, (error as NSError).code != NSURLErrorCancelled {
+                self.onClose(.failure(error))
+            } else {
+                self.onClose(TReturn.self == EmptyObject.self ? .success(EmptyObject() as! TReturn) : .failure(TRPCError(code: .missingOutputPayload, message: "Missing output payload.", data: nil)))
             }
         }
     }
@@ -188,8 +306,6 @@ class TRPCClient {
     }
     
     static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .formatted(dateFormatter)
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
         
         return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "application/json", bodyData: data)
@@ -201,59 +317,40 @@ class TRPCClient {
         return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "multipart/form-data; boundary=\(boundary)", bodyData: data)
     }
     
-    static func startSubscription<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request, idleTimeout: TimeInterval, onMessage: @escaping (Response) throws -> Void) async throws {
-        let urlWithParams = try createURLWithParameters(url: url, input: input)
+    static func startListener<Request: Encodable, Yield: Decodable, Return: Decodable>(url: URL, middlewares: [TRPCMiddleware], procedureType: TRPCProcedureType, input: Request, idleTimeout: TimeInterval, onMessage: @escaping (Yield) throws -> Void) async throws -> Return{
+        guard let processedUrl = procedureType.isBatchingStream ? URL(string: "\(url.absoluteString)?batch=1") : try createURLWithParameters(url: url, input: input) else {
+            throw TRPCError(code: .errorParsingUrl, message: "Could not create URL with parameters.")
+        }
 
-        var request = URLRequest(url: urlWithParams)
+        let bodyData = procedureType.isBatchingStream ? try encoder.encode(TRPCBatchRequest(zero: input)) : nil
+
+        var request = URLRequest(url: processedUrl)
+        request.httpMethod = procedureType == .mutation ? "POST" : "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if procedureType.isBatchingStream {
+            request.addValue("application/jsonl", forHTTPHeaderField: "trpc-accept")
+        }
+        
+        request.httpBody = bodyData
         request.timeoutInterval = idleTimeout
         for middleware in middlewares {
             request = try await middleware(request)
         }
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let client = SSEClient(request: request) { response in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Return, Error>) in
+            let client = SSEClient<Yield, Return>(request: request, procedureType: procedureType) { response in
                 try onMessage(response)
-            } onClose: { error in
-                if let error = error {
+            } onClose: { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
                     continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
                 }
             }
             client.start()
         }
-    }
-
-    static func createMultipartData(input: TRPCSwiftMultipartParsable, boundary: String) throws -> Data {
-        var body = Data()
-        
-        for (key, value) in input.jsonFields {
-            guard let value = value else {
-                continue
-            }
-
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: application/json\r\n\r\n".data(using: .utf8)!)
-            body.append(try JSONEncoder().encode(value))
-            body.append("\r\n".data(using: .utf8)!)
-        }
-        
-        for (key, file) in input.fileFields {
-            guard let file = file else {
-                continue
-            }
-            
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
-            body.append(file.content)
-            body.append("\r\n".data(using: .utf8)!)
-        }
-        
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        return body
     }
     
     private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], contentType: String, bodyData: Data?) async throws -> Response {
@@ -298,7 +395,7 @@ class TRPCClient {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw TRPCError(code: .errorParsingUrl, message: "Could not create URLComponents from the given url: \(url)")
         }
-        
+
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .formatted(dateFormatter)
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
@@ -318,5 +415,37 @@ class TRPCClient {
         }
         
         return url
+    }
+
+    static func createMultipartData(input: TRPCSwiftMultipartParsable, boundary: String) throws -> Data {
+        var body = Data()
+        
+        for (key, value) in input.jsonFields {
+            guard let value = value else {
+                continue
+            }
+
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: application/json\r\n\r\n".data(using: .utf8)!)
+            body.append(try JSONEncoder().encode(value))
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        for (key, file) in input.fileFields {
+            guard let file = file else {
+                continue
+            }
+            
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(file.content)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        return body
     }
 }

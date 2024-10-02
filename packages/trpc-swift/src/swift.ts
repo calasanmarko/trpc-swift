@@ -143,19 +143,22 @@ export class TRPCSwift {
         }
 
         const input = procedure._def.inputs.at(0) as z.ZodTypeAny | undefined;
-        const output =
-            procedure._def.type === "subscription"
-                ? procedure._def.meta?.swift?.subscriptionOutput
-                : (procedure._def.output as z.ZodTypeAny | undefined);
+        const zodOutput = procedure._def.output as z.ZodTypeAny | undefined;
 
-        if (procedure._def.type === "subscription" && !output) {
+        const isGenerator = zodOutput?._def.swift?.generator !== undefined;
+        const returnOutput = isGenerator ? zodOutput?._def.swift?.generator?.return : zodOutput;
+        const yieldOutput = isGenerator ? zodOutput?._def.swift?.generator?.yield : undefined;
+
+        if (isGenerator && !yieldOutput) {
             throw new Error(
-                `Missing subscription output for ${name}. Please insert swift.subscriptionOutput into the procedure meta.`
+                `Generator procedure ${name}: Missing yield type. Make sure you have provided Swift metadata for the output type.`
             );
         }
 
         let inputType = "";
-        let outputType = "";
+        let returnOutputType = "";
+        let yieldOutputType = "";
+
         let result = "";
         if (input) {
             const data = this.zodPrimitive({ type: input, name: `${name}Input`, scope });
@@ -167,10 +170,20 @@ export class TRPCSwift {
             }
         }
 
-        if (output) {
-            const data = this.zodPrimitive({ type: output, name: `${name}Output`, scope });
+        if (returnOutput) {
+            const data = this.zodPrimitive({ type: returnOutput, name: `${name}Output`, scope });
             if (data) {
-                outputType = data.name;
+                returnOutputType = data.name;
+                if (data.definition) {
+                    result += `${data.definition}\n\n`;
+                }
+            }
+        }
+
+        if (yieldOutput) {
+            const data = this.zodPrimitive({ type: yieldOutput, name: `${name}Yield`, scope });
+            if (data) {
+                yieldOutputType = data.name;
                 if (data.definition) {
                     result += `${data.definition}\n\n`;
                 }
@@ -185,11 +198,11 @@ export class TRPCSwift {
             result += `/// ${swiftMeta.description}\n`;
         }
 
-        if (procedure._def.type === "subscription") {
-            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}idleTimeout: TimeInterval = .infinity, onMessage: @escaping (${outputType ? outputType : emptyObjectType}) throws -> Void) async throws -> Void {
-                try await TRPCClient.startSubscription(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData}, idleTimeout: idleTimeout, onMessage: onMessage)
+        if (isGenerator) {
+            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}, ` : ""}idleTimeout: TimeInterval = .infinity, onMessage: @escaping (${yieldOutputType || ""}) throws -> Void) async throws -> ${returnOutputType || "Void"} {
+                ${returnOutputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.startListener(url: url.${appendFunction}("${name}"), middlewares: middlewares, procedureType: .${procedure._def.type}, input: ${inputData}, idleTimeout: idleTimeout, onMessage: onMessage)
             }`;
-        } else if (procedure._def.type === "query" || procedure._def.type === "mutation") {
+        } else {
             const procedureMethod = (() => {
                 if (procedure._def.type === "query") {
                     return "sendQuery";
@@ -202,10 +215,16 @@ export class TRPCSwift {
                     return "sendMutation";
                 }
 
+                if (procedure._def.type === "subscription") {
+                    throw new Error(
+                        `Subscription procedure ${name}: Only async generator subscriptions are supported.`
+                    );
+                }
+
                 throw new Error(`Unsupported procedure type: ${(procedure._def as { type: string }).type}`);
             })();
-            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${outputType || "Void"} {
-                ${outputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData})
+            result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${returnOutputType || "Void"} {
+                ${returnOutputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData})
             }`;
         }
 

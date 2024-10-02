@@ -32,7 +32,6 @@ export type TRPCSwiftMeta = {
     swift?: {
         include?: boolean;
         description?: string;
-        subscriptionOutput?: z.ZodType;
     };
 };
 

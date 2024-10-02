@@ -5,7 +5,11 @@ export const indent = (str: string) => {
     let indentLevel = 0;
     let result = "";
     for (const line of str.split("\n")) {
-        if (!line.includes("{") && line.includes("}")) {
+        const trimmedLine = line.trim();
+
+        const nextLineIncrement = trimmedLine.endsWith("{") || trimmedLine.includes("{ ");
+
+        if (trimmedLine.startsWith("}") || trimmedLine.endsWith("}")) {
             indentLevel--;
         }
 
@@ -16,7 +20,7 @@ export const indent = (str: string) => {
             : "";
         result += spaces + line.trim() + "\n";
 
-        if (line.includes("{") && !line.includes("}")) {
+        if (nextLineIncrement) {
             indentLevel++;
         }
     }
