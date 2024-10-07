@@ -190,8 +190,6 @@ class TRPCClient {
                     } catch {
                         self.stop(result: .failure(error))
                     }
-
-                    break
                 }
             }
         }
