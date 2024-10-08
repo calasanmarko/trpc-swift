@@ -365,9 +365,6 @@ class TRPCClient {
         request.httpBody = bodyData
         
         let response = try await URLSession.shared.data(for: request)
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(dateFormatter)
         let decoded = try decoder.decode(TRPCResponse<Response>.self, from: response.0)
         
         if let error = decoded.error {
@@ -394,8 +391,6 @@ class TRPCClient {
             throw TRPCError(code: .errorParsingUrl, message: "Could not create URLComponents from the given url: \(url)")
         }
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .formatted(dateFormatter)
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
         
         components.queryItems = [
@@ -426,7 +421,7 @@ class TRPCClient {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n".data(using: .utf8)!)
             body.append("Content-Type: application/json\r\n\r\n".data(using: .utf8)!)
-            body.append(try JSONEncoder().encode(value))
+            body.append(try encoder.encode(value))
             body.append("\r\n".data(using: .utf8)!)
         }
         

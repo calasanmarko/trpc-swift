@@ -1,6 +1,6 @@
 {
   "name": "trpc-swift",
-  "version": "1.0.0-beta.13",
+  "version": "1.0.0-beta.14",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "devDependencies": {
