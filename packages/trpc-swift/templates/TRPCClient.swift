@@ -199,7 +199,7 @@ class TRPCClient {
             let yieldCode = 1
             let errorCode = 2
 
-            let prefixRegex = try! NSRegularExpression(pattern: "\\[3,[0-2],")
+            let prefixRegex = try! NSRegularExpression(pattern: "\\[[3-4],[0-2],")
             
             for line in eventLines {
                 if prefixRegex.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count)) != nil {
@@ -208,24 +208,11 @@ class TRPCClient {
                     guard let code = Int(line[codeIndex...codeIndex]) else {
                         continue
                     }
-
-                    let dataStartIndex = line.index(codeIndex, offsetBy: 1)
-                    let firstDataCharacterIndex = line.index(after: dataStartIndex)
-                    let firstDataCharacter = line[firstDataCharacterIndex]
-
-                    let (jsonStartIndex, jsonEndIndex): (String.Index?, String.Index?) = {
-                        if firstDataCharacter == "[" {
-                            return (line.index(firstDataCharacterIndex, offsetBy: 2), line.index(line.endIndex, offsetBy: -4))
-                        } else if firstDataCharacter == "{" {
-                            return (firstDataCharacterIndex, line.lastIndex(of: "}"))
-                        }
-                        return (nil, nil)
-                    }()
                     
-                    guard let jsonStartIndex = jsonStartIndex, let jsonEndIndex = jsonEndIndex else {
+                    guard let jsonStartIndex = line.firstIndex(of: "{"), let jsonEndIndex = line.lastIndex(of: "}") else {
                         continue
                     }
-
+                    
                     guard jsonStartIndex < jsonEndIndex else {
                         continue
                     }
