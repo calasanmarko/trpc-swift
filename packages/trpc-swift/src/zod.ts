@@ -4,7 +4,7 @@ export type ZodSwiftMetadata = {
     name?: string | undefined;
     description?: string | undefined;
     global?: boolean | undefined;
-    experimentalMultipartType?: "file" | "formData" | undefined;
+    experimentalMultipartType?: "file" | "formData" | "repeatable_file" | undefined;
     generator?:
         | {
               yield: z.ZodTypeAny;

@@ -101,7 +101,7 @@ public struct TRPCSwiftFile: Equatable, Hashable {
 
 protocol TRPCSwiftMultipartParsable {
     var jsonFields: [String: Encodable?] { get }
-    var fileFields: [String: TRPCSwiftFile?] { get }
+    var fileFields: [String: [TRPCSwiftFile]?] { get }
 }
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
@@ -412,16 +412,19 @@ class TRPCClient {
             body.append("\r\n".data(using: .utf8)!)
         }
         
-        for (key, file) in input.fileFields {
-            guard let file = file else {
+        for (key, fileArrays) in input.fileFields {
+            guard let fileArrays = fileArrays else {
                 continue
             }
-            
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
-            body.append(file.content)
-            body.append("\r\n".data(using: .utf8)!)
+
+            let files = fileArrays.compactMap { $0 }
+            for file in files {
+                body.append("--\(boundary)\r\n".data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
+                body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
+                body.append(file.content)
+                body.append("\r\n".data(using: .utf8)!)
+            }
         }
         
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)

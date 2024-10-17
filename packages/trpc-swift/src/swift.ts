@@ -286,6 +286,11 @@ export class TRPCSwift {
                     if (experimentalMultipartType === "file") {
                         return { name: "TRPCSwiftFile" };
                     }
+
+                    if (experimentalMultipartType === "repeatable_file") {
+                        return { name: "[TRPCSwiftFile]" };
+                    }
+
                     return { name: "Any" };
                 case z.ZodFirstPartyTypeKind.ZodString:
                     return { name: "String" };
@@ -526,6 +531,10 @@ export class TRPCSwift {
 
         const fileFields = Object.entries(mappedProperties)
             .filter(([_, { schema }]) => schema._def.swift?.experimentalMultipartType === "file")
+            .map(([property, _]) => `"${property}": [${property}]`);
+
+        const repeatableFileFields = Object.entries(mappedProperties)
+            .filter(([_, { schema }]) => schema._def.swift?.experimentalMultipartType === "repeatable_file")
             .map(([property, _]) => `"${property}": ${property}`);
 
         definition += `${this.permissionPrefix()}struct ${name}: ${conformance.join(", ")} {\n`;
@@ -547,8 +556,8 @@ export class TRPCSwift {
             definition += `\nvar jsonFields: [String: Encodable?] {
                 [${jsonFields.join(", ")}]
             }\n`;
-            definition += `\nvar fileFields: [String: TRPCSwiftFile?] {
-                [${fileFields.join(", ")}]
+            definition += `\nvar fileFields: [String: [TRPCSwiftFile]?] {
+                [${[...fileFields, ...repeatableFileFields].join(", ")}]
             }\n`;
         }
         definition += "}";
