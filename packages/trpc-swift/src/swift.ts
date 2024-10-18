@@ -283,12 +283,8 @@ export class TRPCSwift {
         const result = (() => {
             switch (type._def.typeName) {
                 case z.ZodFirstPartyTypeKind.ZodAny:
-                    if (experimentalMultipartType === "file") {
+                    if (experimentalMultipartType === "file" || experimentalMultipartType === "repeatable_file") {
                         return { name: "TRPCSwiftFile" };
-                    }
-
-                    if (experimentalMultipartType === "repeatable_file") {
-                        return { name: "[TRPCSwiftFile]" };
                     }
 
                     return { name: "Any" };
