@@ -7,7 +7,7 @@ import type {
     TRPCSwiftConfiguration,
     MappedProperties,
 } from "./types";
-import { allNamedSchemas, type ZodSwiftMetadata } from "./zod";
+import { allNamedSchemas, unwrapZodType, type ZodSwiftMetadata } from "./zod";
 
 export class TRPCSwift {
     globalDefinitions: string[] = [];
@@ -283,7 +283,7 @@ export class TRPCSwift {
         const result = (() => {
             switch (type._def.typeName) {
                 case z.ZodFirstPartyTypeKind.ZodAny:
-                    if (experimentalMultipartType === "file" || experimentalMultipartType === "repeatable_file") {
+                    if (experimentalMultipartType === "file") {
                         return { name: "TRPCSwiftFile" };
                     }
 
@@ -521,17 +521,28 @@ export class TRPCSwift {
             conformance.push("TRPCSwiftMultipartParsable");
         }
 
-        const jsonFields = Object.entries(mappedProperties)
-            .filter(([_, { schema }]) => !schema._def.swift?.experimentalMultipartType)
-            .map(([property, _]) => `"${property}": ${property}`);
+        const jsonFields: string[] = [];
+        const fileFields: string[] = [];
 
-        const fileFields = Object.entries(mappedProperties)
-            .filter(([_, { schema }]) => schema._def.swift?.experimentalMultipartType === "file")
-            .map(([property, _]) => `"${property}": [${property}]`);
+        if (isFormData) {
+            for (const [property, value] of Object.entries(mappedProperties)) {
+                const unwrappedType = unwrapZodType(value.schema);
+                const experimentalMultipartType = unwrappedType._def.swift?.experimentalMultipartType;
 
-        const repeatableFileFields = Object.entries(mappedProperties)
-            .filter(([_, { schema }]) => schema._def.swift?.experimentalMultipartType === "repeatable_file")
-            .map(([property, _]) => `"${property}": ${property}`);
+                switch (experimentalMultipartType) {
+                    case "file":
+                        if (unwrappedType._def.typeName === z.ZodFirstPartyTypeKind.ZodArray) {
+                            fileFields.push(`"${property}": ${property}`);
+                        } else {
+                            fileFields.push(`"${property}": [${property}]`);
+                        }
+                        break;
+                    default:
+                        jsonFields.push(`"${property}": ${property}`);
+                        break;
+                }
+            }
+        }
 
         definition += `${this.permissionPrefix()}struct ${name}: ${conformance.join(", ")} {\n`;
         if (definitions) {
@@ -552,8 +563,8 @@ export class TRPCSwift {
             definition += `\nvar jsonFields: [String: Encodable?] {
                 [${jsonFields.join(", ")}]
             }\n`;
-            definition += `\nvar fileFields: [String: [TRPCSwiftFile]?] {
-                [${[...fileFields, ...repeatableFileFields].join(", ")}]
+            definition += `\nvar fileFields: [String: [TRPCSwiftFile?]?] {
+                [${fileFields.join(", ")}]
             }\n`;
         }
         definition += "}";

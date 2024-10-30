@@ -1,10 +1,10 @@
-import type { ZodTypeAny, z } from "zod";
+import { z, type ZodTypeAny } from "zod";
 
 export type ZodSwiftMetadata = {
     name?: string | undefined;
     description?: string | undefined;
     global?: boolean | undefined;
-    experimentalMultipartType?: "file" | "formData" | "repeatable_file" | undefined;
+    experimentalMultipartType?: "file" | "formData" | undefined;
     generator?:
         | {
               yield: z.ZodTypeAny;
@@ -41,4 +41,14 @@ export const extendZodWithSwift = (zod: typeof z) => {
 
         return this;
     };
+};
+
+export const unwrapZodType = (type: z.ZodTypeAny): z.ZodTypeAny => {
+    if (
+        type._def.typeName === z.ZodFirstPartyTypeKind.ZodOptional ||
+        type._def.typeName === z.ZodFirstPartyTypeKind.ZodNullable
+    ) {
+        return unwrapZodType(type._def.innerType);
+    }
+    return type;
 };

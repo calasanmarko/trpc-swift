@@ -101,7 +101,7 @@ public struct TRPCSwiftFile: Equatable, Hashable {
 
 protocol TRPCSwiftMultipartParsable {
     var jsonFields: [String: Encodable?] { get }
-    var fileFields: [String: [TRPCSwiftFile]?] { get }
+    var fileFields: [String: [TRPCSwiftFile?]?] { get }
 }
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
