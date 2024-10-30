@@ -527,7 +527,9 @@ export class TRPCSwift {
         if (isFormData) {
             for (const [property, value] of Object.entries(mappedProperties)) {
                 const unwrappedType = unwrapZodType(value.schema);
-                const experimentalMultipartType = unwrappedType._def.swift?.experimentalMultipartType;
+                const experimentalMultipartType =
+                    value.schema._def.swift?.experimentalMultipartType ??
+                    unwrappedType._def.swift?.experimentalMultipartType;
 
                 switch (experimentalMultipartType) {
                     case "file":
