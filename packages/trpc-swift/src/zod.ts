@@ -50,5 +50,10 @@ export const unwrapZodType = (type: z.ZodTypeAny): z.ZodTypeAny => {
     ) {
         return unwrapZodType(type._def.innerType);
     }
+
+    if (type._def.typeName === z.ZodFirstPartyTypeKind.ZodEffects) {
+        return unwrapZodType(type._def.schema);
+    }
+
     return type;
 };
