@@ -257,9 +257,14 @@ export class TRPCSwift {
             ) {
                 while (
                     innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodOptional ||
-                    innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodNullable
+                    innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodNullable ||
+                    innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodEffects
                 ) {
-                    innerType = (innerType as z.ZodOptional<z.ZodTypeAny> | z.ZodNullable<z.ZodTypeAny>).unwrap();
+                    if (innerType._def.typeName === z.ZodFirstPartyTypeKind.ZodEffects) {
+                        innerType = (innerType as z.ZodEffects<never, never>)._def.schema;
+                    } else {
+                        innerType = (innerType as z.ZodOptional<z.ZodTypeAny> | z.ZodNullable<z.ZodTypeAny>).unwrap();
+                    }
                 }
             }
 

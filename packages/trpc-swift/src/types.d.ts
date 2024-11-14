@@ -40,8 +40,8 @@ export type TRPCAppRouter = ReturnType<TRPCCreateResult["router"]>;
 export type TRPCProcedureWithInput = AnyTRPCProcedure & {
     _def: AnyTRPCProcedure["_def"] & {
         meta?: TRPCSwiftMeta;
-        inputs: unknown[];
-        output?: unknown | undefined;
+        inputs: (z.ZodType | undefined)[];
+        output?: (z.ZodType | undefined) | undefined;
     };
 };
 export type TRPCChildRouter = Record<string, TRPCProcedureWithInput>;
