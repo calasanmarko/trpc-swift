@@ -48,4 +48,7 @@ export type TRPCChildRouter = Record<string, TRPCProcedureWithInput>;
 
 export type ZodPrimitiveData = { name: string; definition?: string };
 
-export type MappedProperties = Record<string, { typeName: string; schema: z.ZodType }>;
+export type MappedProperties = Record<
+    string,
+    { typeName: string; schema: z.ZodType; experimentalMultipartType: "file" | "formData" | undefined }
+>;

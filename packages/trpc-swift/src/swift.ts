@@ -160,10 +160,12 @@ export class TRPCSwift {
         let yieldOutputType = "";
 
         let result = "";
+        let isInputFormData = false;
         if (input) {
             const data = this.zodPrimitive({ type: input, name: `${name}Input`, scope });
             if (data) {
                 inputType = data.name;
+                isInputFormData = data.experimentalMultipartType === "formData";
                 if (data.definition) {
                     result += `${data.definition}\n\n`;
                 }
@@ -209,7 +211,7 @@ export class TRPCSwift {
                 }
 
                 if (procedure._def.type === "mutation") {
-                    if (input?._def.swift?.experimentalMultipartType === "formData") {
+                    if (isInputFormData) {
                         return "sendMultipartMutation";
                     }
                     return "sendMutation";
@@ -265,8 +267,10 @@ export class TRPCSwift {
                     } else {
                         innerType = (innerType as z.ZodOptional<z.ZodTypeAny> | z.ZodNullable<z.ZodTypeAny>).unwrap();
                     }
+                    experimentalMultipartType ||= innerType._def.swift?.experimentalMultipartType;
                 }
             }
+            experimentalMultipartType ||= innerType._def.swift?.experimentalMultipartType;
 
             const innerResult = this.zodPrimitive({
                 type: innerType,
@@ -282,16 +286,16 @@ export class TRPCSwift {
             return {
                 name: `${strings[0]}${innerResult.name}${strings[1]}`,
                 definition: innerResult.definition,
+                experimentalMultipartType: experimentalMultipartType || innerResult.experimentalMultipartType,
             };
         };
 
         const result = (() => {
+            if (experimentalMultipartType === "file") {
+                return { name: "TRPCSwiftFile" };
+            }
             switch (type._def.typeName) {
                 case z.ZodFirstPartyTypeKind.ZodAny:
-                    if (experimentalMultipartType === "file") {
-                        return { name: "TRPCSwiftFile" };
-                    }
-
                     return { name: "Any" };
                 case z.ZodFirstPartyTypeKind.ZodString:
                     return { name: "String" };
@@ -473,6 +477,7 @@ export class TRPCSwift {
                     mappedProperties[formattedKey] = {
                         typeName: result.name,
                         schema: value,
+                        experimentalMultipartType: result.experimentalMultipartType,
                     };
                 }
             } catch (e) {
@@ -532,9 +537,7 @@ export class TRPCSwift {
         if (isFormData) {
             for (const [property, value] of Object.entries(mappedProperties)) {
                 const unwrappedType = unwrapZodType(value.schema);
-                const experimentalMultipartType =
-                    value.schema._def.swift?.experimentalMultipartType ??
-                    unwrappedType._def.swift?.experimentalMultipartType;
+                const experimentalMultipartType = value.experimentalMultipartType;
 
                 switch (experimentalMultipartType) {
                     case "file":
