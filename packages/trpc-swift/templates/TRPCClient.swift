@@ -166,6 +166,7 @@ class TRPCClient {
         func parseSubscriptionEventLines(eventLines: [String]) {
             let dataPrefix = "data: "
             let isErrorEvent = eventLines.contains("event: serialized-error")
+            let isConnectionEvent = eventLines.contains("event: connected")
 
             for line in eventLines {
                 if line.hasPrefix(dataPrefix) {
@@ -178,14 +179,11 @@ class TRPCClient {
                         if isErrorEvent {
                             let error = try decoder.decode(TRPCError.self, from: jsonData)
                             throw error
+                        } else if isConnectionEvent && jsonString == "{}" {
+                            continue
                         } else {
-                            do {
-                                let response = try decoder.decode(TYield.self, from: jsonData)
-                                try self.onMessage(response)
-                            } catch {
-                                let response = try decoder.decode(TReturn.self, from: jsonData)
-                                self.stop(result: .success(response))
-                            }
+                            let response = try decoder.decode(TYield.self, from: jsonData)
+                            try self.onMessage(response)
                         }
                     } catch {
                         self.stop(result: .failure(error))
