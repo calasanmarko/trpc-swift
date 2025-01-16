@@ -93,7 +93,7 @@ export class TRPCSwift {
         }
 
         for (const [name, childRouter] of Object.entries(childRouters)) {
-            code += `${this.permissionPrefix()}lazy var ${name} = ${swiftTypeName({ name: `${name}Router` })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares)\n`;
+            code += `${this.permissionPrefix()}lazy var ${name} = ${swiftTypeName({ name: `${name}Router` })}(url: url.appendingPathComponent("${name}"), middlewares: middlewares, responseMiddlewares: responseMiddlewares)\n`;
             code += this.router({
                 router: childRouter,
                 name,
@@ -106,10 +106,12 @@ export class TRPCSwift {
         ${this.permissionPrefix()}class ${swiftTypeName({ name: `${name}Router` })} {
             fileprivate var url: URL
             fileprivate var middlewares: [TRPCMiddleware]
+            fileprivate var responseMiddlewares: [TRPCResponseMiddleware]
 
-            ${this.permissionPrefix()}init(url: URL, middlewares: [TRPCMiddleware] = []) {
+            ${this.permissionPrefix()}init(url: URL, middlewares: [TRPCMiddleware] = [], responseMiddlewares: [TRPCResponseMiddleware] = []) {
                 self.url = url
                 self.middlewares = middlewares
+                self.responseMiddlewares = responseMiddlewares
             }
 
             ${code}
@@ -226,7 +228,7 @@ export class TRPCSwift {
                 throw new Error(`Unsupported procedure type: ${(procedure._def as { type: string }).type}`);
             })();
             result += `${this.permissionPrefix()}func ${name}(${inputType ? `input: ${inputType}` : ""}) async throws -> ${returnOutputType || "Void"} {
-                ${returnOutputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, input: ${inputData})
+                ${returnOutputType ? "return" : `let _: ${emptyObjectType} =`} try await TRPCClient.${procedureMethod}(url: url.${appendFunction}("${name}"), middlewares: middlewares, responseMiddlewares: responseMiddlewares, input: ${inputData})
             }`;
         }
 

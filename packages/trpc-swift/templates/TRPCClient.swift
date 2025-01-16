@@ -105,6 +105,7 @@ protocol TRPCSwiftMultipartParsable {
 }
 
 public typealias TRPCMiddleware = (URLRequest) async throws -> URLRequest
+public typealias TRPCResponseMiddleware = (Data, URLResponse) async throws -> (Data, URLResponse)
 
 enum TRPCProcedureType {
     case query
@@ -283,21 +284,21 @@ class TRPCClient {
         return formatter
     }()
     
-    static func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+    static func sendQuery<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], responseMiddlewares: [TRPCResponseMiddleware], input: Request) async throws -> Response {
         let urlWithParams = try createURLWithParameters(url: url, input: input)
-        return try await send(url: urlWithParams, httpMethod: "GET", middlewares: middlewares, contentType: "application/json", bodyData: nil)
+        return try await send(url: urlWithParams, httpMethod: "GET", middlewares: middlewares, responseMiddlewares: responseMiddlewares, contentType: "application/json", bodyData: nil)
     }
     
-    static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+    static func sendMutation<Request: Encodable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], responseMiddlewares: [TRPCResponseMiddleware], input: Request) async throws -> Response {
         let data = try encoder.encode(Request.self == EmptyObject.self ? nil : input)
         
-        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "application/json", bodyData: data)
+        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, responseMiddlewares: responseMiddlewares, contentType: "application/json", bodyData: data)
     }
 
-    static func sendMultipartMutation<Request: TRPCSwiftMultipartParsable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], input: Request) async throws -> Response {
+    static func sendMultipartMutation<Request: TRPCSwiftMultipartParsable, Response: Decodable>(url: URL, middlewares: [TRPCMiddleware], responseMiddlewares: [TRPCResponseMiddleware], input: Request) async throws -> Response {
         let boundary = "TRPCSwiftMultipart-\(UUID().uuidString)"
         let data = try createMultipartData(input: input, boundary: boundary)
-        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, contentType: "multipart/form-data; boundary=\(boundary)", bodyData: data)
+        return try await send(url: url, httpMethod: "POST", middlewares: middlewares, responseMiddlewares: responseMiddlewares, contentType: "multipart/form-data; boundary=\(boundary)", bodyData: data)
     }
     
     static func startListener<Request: Encodable, Yield: Decodable, Return: Decodable>(url: URL, middlewares: [TRPCMiddleware], procedureType: TRPCProcedureType, input: Request, idleTimeout: TimeInterval, onMessage: @escaping (Yield) throws -> Void) async throws -> Return{
@@ -336,7 +337,7 @@ class TRPCClient {
         }
     }
     
-    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], contentType: String, bodyData: Data?) async throws -> Response {
+    private static func send<Response: Decodable>(url: URL, httpMethod: String, middlewares: [TRPCMiddleware], responseMiddlewares: [TRPCResponseMiddleware], contentType: String, bodyData: Data?) async throws -> Response {
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.httpBody = bodyData
@@ -349,7 +350,11 @@ class TRPCClient {
         request.httpMethod = httpMethod
         request.httpBody = bodyData
         
-        let response = try await URLSession.shared.data(for: request)
+        var response = try await URLSession.shared.data(for: request)
+        for responseMiddleware in responseMiddlewares {
+            response = try await responseMiddleware(response.0, response.1)
+        }
+
         let decoded = try decoder.decode(TRPCResponse<Response>.self, from: response.0)
         
         if let error = decoded.error {
