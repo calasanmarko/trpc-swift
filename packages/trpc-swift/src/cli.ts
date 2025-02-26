@@ -15,7 +15,11 @@ const timeMessage = `Generated Swift code at ${config.outFile}`;
 console.time(timeMessage);
 
 const result = await new TRPCSwift(config).root();
-await Bun.write(config.outFile, result);
+if (config.outFile) {
+    await Bun.write(config.outFile, result);
+} else {
+    console.log(result);
+}
 
 console.timeEnd(timeMessage);
 
