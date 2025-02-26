@@ -3,7 +3,7 @@ import type { AnyRouter, AnyTRPCProcedure, initTRPC } from "@trpc/server";
 export declare type TRPCSwiftFullConfiguration = {
     router: AnyRouter;
     permissionScope: "internal" | "public";
-    outFile?: string;
+    outFile?: string | undefined;
     conformance: {
         structs: string[];
         enums: string[];
