@@ -8,6 +8,8 @@ import type {
     MappedProperties,
 } from "./types";
 import { allNamedSchemas, unwrapZodType, type ZodSwiftMetadata } from "./zod";
+import { fileURLToPath } from "bun";
+import { dirname } from "path";
 
 export class TRPCSwift {
     globalDefinitions: string[] = [];
@@ -52,8 +54,11 @@ export class TRPCSwift {
             routerDepth: 0,
         });
 
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = dirname(__filename);
+
         const result = `
-            ${await Bun.file(`${import.meta.dir}/../templates/TRPCClient.swift`).text()}
+            ${await Bun.file(`${__dirname}/../templates/TRPCClient.swift`).text()}
             ${this.globalDefinitions.join("\n\n")}
             ${routerCode}
         `;
