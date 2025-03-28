@@ -8,7 +8,7 @@ import type {
     MappedProperties,
 } from "./types";
 import { allNamedSchemas, unwrapZodType, type ZodSwiftMetadata } from "./zod";
-import { fileURLToPath } from "bun";
+import { fileURLToPath } from "url";
 import { dirname } from "path";
 
 export class TRPCSwift {
