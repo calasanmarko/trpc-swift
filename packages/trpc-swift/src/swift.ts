@@ -27,6 +27,9 @@ export class TRPCSwift {
                 include: "all",
                 subscriptionMode: "sse",
             },
+            enums: {
+                addUnknownCase: true,
+            },
             models: {
                 include: "all",
                 makeGlobal: "all",
@@ -438,12 +441,28 @@ export class TRPCSwift {
         }
 
         definition += `${this.permissionPrefix()}enum ${name}: String, ${this.config.conformance.enums.join(", ")} {\n`;
+
         for (const value of values) {
             if (typeof value === "string") {
                 definition += `case ${swiftFieldName({ name: value })} = "${value}"\n`;
                 isValid = true;
             }
         }
+
+        if (this.config.enums.addUnknownCase) {
+            const desiredUnknownValue = "unknown_value";
+            const unknownValue = values.includes(desiredUnknownValue)
+                ? "trpc_swift_unknown_value"
+                : desiredUnknownValue;
+
+            definition += `case ${swiftFieldName({ name: unknownValue })} = "${unknownValue}"\n\n`;
+            definition += `${this.permissionPrefix()}init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                let rawValue = try container.decode(String.self)
+                self = Self(rawValue: rawValue) ?? .${swiftFieldName({ name: unknownValue })}
+            }\n`;
+        }
+
         definition += "}";
         return isValid ? { name, definition } : null;
     }

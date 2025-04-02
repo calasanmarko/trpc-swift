@@ -12,6 +12,9 @@ export declare type TRPCSwiftFullConfiguration = {
         include: "all" | "none";
         subscriptionMode: "none" | "sse";
     };
+    enums: {
+        addUnknownCase: boolean;
+    };
     models:
         | {
               include: "referenced";
